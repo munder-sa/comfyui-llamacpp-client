@@ -19,6 +19,11 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 
 ## 🚀 Key Capabilities
 
+### **Visual Workflow Enhancements (NEW)**
+- **Dynamic UI**: Input fields automatically show/hide based on the selected endpoint (e.g., chat fields only appear when using `chat_completions`).
+- **Direct Image Input**: Connect ComfyUI `IMAGE` tensors directly to the node for seamless Multimodal/Vision processing (automatically converts to Base64).
+- **Debug Mode**: Toggle detailed console logging to inspect raw API payloads and troubleshooting.
+
 ### **Complete API Coverage**
 | Endpoint | Purpose | What You Can Do |
 |----------|---------|-----------------|
@@ -69,7 +74,7 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 1. **Clone into ComfyUI custom nodes**:
    ```bash
    cd /path/to/ComfyUI/custom_nodes
-   git clone https://github.com/fidecastro/comfyui-llamacpp-client.git
+   git clone https://github.com/munder-sa/comfyui-llamacpp-client.git
    ```
 
 2. **Install dependencies**:
@@ -167,6 +172,14 @@ Tools: [
     }
   }
 ]
+```
+
+### Vision / Multimodal (NEW)
+```
+Endpoint: chat_completions
+Prompt / User Message: "Describe this image in detail."
+Images: [Connect any ComfyUI IMAGE output here]
+Model: qwen-vl-ocr-2025-11-20 (or any vision-capable model)
 ```
 
 ## 📊 What Makes This Special

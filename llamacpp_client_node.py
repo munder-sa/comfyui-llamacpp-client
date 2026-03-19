@@ -1,10 +1,5 @@
-import json
-import requests
-import base64
-from typing import Dict, Any, List, Optional, Union
-import io
-from PIL import Image
-
+from .utils.llama_client import LlamaCppAPIClient
+from .utils.logger import set_debug_mode
 
 class LlamaCppClientNode:
     """
@@ -49,7 +44,7 @@ class LlamaCppClientNode:
                 "n_predict": ("INT", {
                     "default": -1,
                     "min": -1,
-                    "max": 100000,
+                    "max": 1000000,
                     "tooltip": "Number of tokens to predict (-1 = infinity)"
                 }),
                 "temperature": ("FLOAT", {
@@ -328,7 +323,7 @@ class LlamaCppClientNode:
                 "max_tokens": ("INT", {
                     "default": -1,
                     "min": -1,
-                    "max": 100000,
+                    "max": 1000000,
                     "tooltip": "Maximum tokens in response (OpenAI style)"
                 }),
                 "model": ("STRING", {
@@ -452,6 +447,15 @@ class LlamaCppClientNode:
                     "multiline": True,
                     "tooltip": "JSON array of image data objects"
                 }),
+                "images": ("IMAGE", {
+                    "tooltip": "ComfyUI image tensor to send to the multimodal model"
+                }),
+                
+                # Debugging
+                "debug_mode": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Enable detailed debug logging to the console"
+                }),
             }
         }
     
@@ -461,29 +465,34 @@ class LlamaCppClientNode:
     CATEGORY = "AI/LlamaCpp"
     
     def process_request(self, server_url: str, endpoint: str, prompt: str, **kwargs):
-        """Process the request to llama-server with all provided parameters."""
-        
+        """Process the request to llama-server via the API client."""
         try:
-            # Clean up server URL
-            server_url = server_url.rstrip('/')
+            # Set debug mode dynamically based on UI toggle
+            is_debug = kwargs.get("debug_mode", True)
+            set_debug_mode(is_debug)
             
-            # Build the request based on endpoint
+            client = LlamaCppAPIClient(
+                base_url=server_url,
+                api_key=kwargs.get("api_key", ""),
+                timeout=kwargs.get("timeout", 600)
+            )
+            
             if endpoint == "completion":
-                response, raw_response, error, status_code = self._handle_completion(server_url, prompt, **kwargs)
+                response, raw_response, error, status_code = client.handle_completion(prompt, **kwargs)
             elif endpoint == "chat_completions":
-                response, raw_response, error, status_code = self._handle_chat_completions(server_url, **kwargs)
+                response, raw_response, error, status_code = client.handle_chat_completions(prompt=prompt, **kwargs)
             elif endpoint == "embeddings":
-                response, raw_response, error, status_code = self._handle_embeddings(server_url, **kwargs)
+                response, raw_response, error, status_code = client.handle_embeddings(prompt=prompt, **kwargs)
             elif endpoint == "tokenize":
-                response, raw_response, error, status_code = self._handle_tokenize(server_url, **kwargs)
+                response, raw_response, error, status_code = client.handle_tokenize(prompt=prompt, **kwargs)
             elif endpoint == "detokenize":
-                response, raw_response, error, status_code = self._handle_detokenize(server_url, **kwargs)
+                response, raw_response, error, status_code = client.handle_detokenize(**kwargs)
             elif endpoint == "apply_template":
-                response, raw_response, error, status_code = self._handle_apply_template(server_url, **kwargs)
+                response, raw_response, error, status_code = client.handle_apply_template(**kwargs)
             elif endpoint == "infill":
-                response, raw_response, error, status_code = self._handle_infill(server_url, **kwargs)
+                response, raw_response, error, status_code = client.handle_infill(prompt=prompt, **kwargs)
             elif endpoint == "reranking":
-                response, raw_response, error, status_code = self._handle_reranking(server_url, **kwargs)
+                response, raw_response, error, status_code = client.handle_reranking(**kwargs)
             else:
                 return "", "", f"Unsupported endpoint: {endpoint}", 400
                 
@@ -491,302 +500,6 @@ class LlamaCppClientNode:
             
         except Exception as e:
             return "", "", f"Error processing request: {str(e)}", 500
-    
-    def _make_request(self, url: str, data: Dict[str, Any], api_key: str = "", timeout: int = 600):
-        """Make HTTP request to llama-server."""
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        
-        try:
-            response = requests.post(url, json=data, headers=headers, timeout=timeout)
-            return response.json(), json.dumps(response.json(), indent=2), "", response.status_code
-        except requests.exceptions.Timeout:
-            return "", "", "Request timeout", 408
-        except requests.exceptions.ConnectionError:
-            return "", "", "Connection error", 503
-        except requests.exceptions.RequestException as e:
-            return "", "", f"Request error: {str(e)}", 500
-        except json.JSONDecodeError:
-            return "", response.text if 'response' in locals() else "", "Invalid JSON response", 502
-    
-    def _clean_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Remove None values and convert string parameters to appropriate types."""
-        cleaned = {}
-        
-        for key, value in params.items():
-            if value is None:
-                continue
-                
-            # Handle string parameters that should be parsed as JSON
-            if key in ['stop_sequences', 'logit_bias', 'samplers', 'messages', 'tools', 
-                      'response_format', 'input_extra', 'documents', 'lora', 'response_fields',
-                      'image_data', 'dry_sequence_breakers', 'tokens']:
-                if isinstance(value, str) and value.strip():
-                    try:
-                        cleaned[key] = json.loads(value)
-                    except json.JSONDecodeError:
-                        continue
-                elif isinstance(value, (list, dict)):
-                    # Value is already a list or dict, use as is
-                    cleaned[key] = value
-            else:
-                cleaned[key] = value
-        
-        return cleaned
-    
-    def _handle_completion(self, server_url: str, prompt: str, **kwargs):
-        """Handle /completion endpoint."""
-        url = f"{server_url}/completion"
-        
-        # Build parameters
-        params = {
-            "prompt": prompt,
-        }
-        
-        # Add all relevant parameters
-        param_mapping = {
-            "n_predict": "n_predict",
-            "temperature": "temperature", 
-            "top_k": "top_k",
-            "top_p": "top_p",
-            "min_p": "min_p",
-            "seed": "seed",
-            "dynatemp_range": "dynatemp_range",
-            "dynatemp_exponent": "dynatemp_exponent",
-            "xtc_probability": "xtc_probability",
-            "xtc_threshold": "xtc_threshold",
-            "repeat_penalty": "repeat_penalty",
-            "repeat_last_n": "repeat_last_n",
-            "presence_penalty": "presence_penalty",
-            "frequency_penalty": "frequency_penalty",
-            "dry_multiplier": "dry_multiplier",
-            "dry_base": "dry_base",
-            "dry_allowed_length": "dry_allowed_length",
-            "dry_penalty_last_n": "dry_penalty_last_n",
-            "dry_sequence_breakers": "dry_sequence_breakers",
-            "mirostat": "mirostat",
-            "mirostat_tau": "mirostat_tau",
-            "mirostat_eta": "mirostat_eta",
-            "typical_p": "typical_p",
-            "n_keep": "n_keep",
-            "stop_sequences": "stop",
-            "ignore_eos": "ignore_eos",
-            "stream": "stream",
-            "n_probs": "n_probs",
-            "min_keep": "min_keep",
-            "post_sampling_probs": "post_sampling_probs",
-            "return_tokens": "return_tokens",
-            "timings_per_token": "timings_per_token",
-            "grammar": "grammar",
-            "json_schema": "json_schema",
-            "logit_bias": "logit_bias",
-            "cache_prompt": "cache_prompt",
-            "id_slot": "id_slot",
-            "samplers": "samplers",
-            "t_max_predict_ms": "t_max_predict_ms",
-            "lora": "lora",
-            "response_fields": "response_fields",
-            "image_data": "image_data",
-        }
-        
-        for param_key, api_key in param_mapping.items():
-            if param_key in kwargs and kwargs[param_key] is not None:
-                if param_key == "stop_sequences":
-                    params[api_key] = kwargs[param_key]
-                else:
-                    params[api_key] = kwargs[param_key]
-        
-        # Clean parameters
-        params = self._clean_params(params)
-        
-        return self._make_request(url, params, kwargs.get("api_key", ""), kwargs.get("timeout", 600))
-    
-    def _handle_chat_completions(self, server_url: str, **kwargs):
-        """Handle /v1/chat/completions endpoint."""
-        url = f"{server_url}/v1/chat/completions"
-        
-        # Build messages array
-        messages = []
-        
-        # Parse existing messages if provided
-        if kwargs.get("messages") and kwargs["messages"].strip():
-            try:
-                messages = json.loads(kwargs["messages"])
-            except json.JSONDecodeError:
-                pass
-        
-        # Add individual messages if provided
-        if kwargs.get("system_message") and kwargs["system_message"].strip():
-            messages.append({"role": "system", "content": kwargs["system_message"]})
-        
-        if kwargs.get("user_message") and kwargs["user_message"].strip():
-            messages.append({"role": "user", "content": kwargs["user_message"]})
-        
-        if kwargs.get("assistant_message") and kwargs["assistant_message"].strip():
-            messages.append({"role": "assistant", "content": kwargs["assistant_message"]})
-        
-        # If no messages, use prompt as user message
-        if not messages and kwargs.get("prompt"):
-            messages.append({"role": "user", "content": kwargs["prompt"]})
-        
-        params = {
-            "messages": messages,
-            "model": kwargs.get("model", "default"),
-        }
-        
-        # Add chat-specific parameters
-        param_mapping = {
-            "max_tokens": "max_tokens",
-            "temperature": "temperature",
-            "top_p": "top_p",
-            "top_k": "top_k",
-            "min_p": "min_p",
-            "seed": "seed",
-            "stream": "stream",
-            "stop_sequences": "stop",
-            "presence_penalty": "presence_penalty",
-            "frequency_penalty": "frequency_penalty",
-            "tools": "tools",
-            "tool_choice": "tool_choice",
-            "response_format": "response_format",
-            "n_probs": "logprobs",
-        }
-        
-        for param_key, api_key in param_mapping.items():
-            if param_key in kwargs and kwargs[param_key] is not None:
-                params[api_key] = kwargs[param_key]
-        
-        # Clean parameters
-        params = self._clean_params(params)
-        
-        return self._make_request(url, params, kwargs.get("api_key", ""), kwargs.get("timeout", 600))
-    
-    def _handle_embeddings(self, server_url: str, **kwargs):
-        """Handle /v1/embeddings endpoint."""
-        url = f"{server_url}/v1/embeddings"
-        
-        # Use input_text or content or prompt
-        input_text = kwargs.get("input_text") or kwargs.get("content") or kwargs.get("prompt", "")
-        
-        params = {
-            "input": input_text,
-            "model": kwargs.get("model", "default"),
-            "encoding_format": kwargs.get("encoding_format", "float"),
-        }
-        
-        # Clean parameters
-        params = self._clean_params(params)
-        
-        return self._make_request(url, params, kwargs.get("api_key", ""), kwargs.get("timeout", 600))
-    
-    def _handle_tokenize(self, server_url: str, **kwargs):
-        """Handle /tokenize endpoint."""
-        url = f"{server_url}/tokenize"
-        
-        content = kwargs.get("content") or kwargs.get("prompt", "")
-        
-        params = {
-            "content": content,
-            "add_special": kwargs.get("add_special", False),
-            "parse_special": kwargs.get("parse_special", True),
-            "with_pieces": kwargs.get("with_pieces", False),
-        }
-        
-        return self._make_request(url, params, kwargs.get("api_key", ""), kwargs.get("timeout", 600))
-    
-    def _handle_detokenize(self, server_url: str, **kwargs):
-        """Handle /detokenize endpoint."""
-        url = f"{server_url}/detokenize"
-        
-        tokens = kwargs.get("tokens", "[]")
-        if isinstance(tokens, str):
-            try:
-                tokens = json.loads(tokens)
-            except json.JSONDecodeError:
-                tokens = []
-        
-        params = {
-            "tokens": tokens,
-        }
-        
-        return self._make_request(url, params, kwargs.get("api_key", ""), kwargs.get("timeout", 600))
-    
-    def _handle_apply_template(self, server_url: str, **kwargs):
-        """Handle /apply-template endpoint."""
-        url = f"{server_url}/apply-template"
-        
-        messages = kwargs.get("messages", "[]")
-        if isinstance(messages, str):
-            try:
-                messages = json.loads(messages)
-            except json.JSONDecodeError:
-                messages = []
-        
-        params = {
-            "messages": messages,
-        }
-        
-        return self._make_request(url, params, kwargs.get("api_key", ""), kwargs.get("timeout", 600))
-    
-    def _handle_infill(self, server_url: str, **kwargs):
-        """Handle /infill endpoint."""
-        url = f"{server_url}/infill"
-        
-        params = {
-            "input_prefix": kwargs.get("input_prefix", ""),
-            "input_suffix": kwargs.get("input_suffix", ""),
-        }
-        
-        if kwargs.get("input_extra"):
-            try:
-                params["input_extra"] = json.loads(kwargs["input_extra"])
-            except json.JSONDecodeError:
-                pass
-        
-        if kwargs.get("prompt"):
-            params["prompt"] = kwargs["prompt"]
-        
-        # Add completion parameters
-        completion_params = [
-            "temperature", "top_k", "top_p", "min_p", "seed", "stream",
-            "n_predict", "stop_sequences", "repeat_penalty", "repeat_last_n"
-        ]
-        
-        for param in completion_params:
-            if param in kwargs and kwargs[param] is not None:
-                if param == "stop_sequences":
-                    params["stop"] = kwargs[param]
-                else:
-                    params[param] = kwargs[param]
-        
-        # Clean parameters
-        params = self._clean_params(params)
-        
-        return self._make_request(url, params, kwargs.get("api_key", ""), kwargs.get("timeout", 600))
-    
-    def _handle_reranking(self, server_url: str, **kwargs):
-        """Handle /v1/rerank endpoint."""
-        url = f"{server_url}/v1/rerank"
-        
-        query = kwargs.get("query", "")
-        documents = kwargs.get("documents", "[]")
-        
-        if isinstance(documents, str):
-            try:
-                documents = json.loads(documents)
-            except json.JSONDecodeError:
-                documents = []
-        
-        params = {
-            "model": kwargs.get("model", "default"),
-            "query": query,
-            "documents": documents,
-            "top_n": kwargs.get("top_n", 10),
-        }
-        
-        return self._make_request(url, params, kwargs.get("api_key", ""), kwargs.get("timeout", 600))
-
 
 # Node mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {
