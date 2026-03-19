@@ -2,6 +2,31 @@
 
 All notable changes to the ComfyUI Llama.cpp Client Node will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Visual Workflow Enhancements**: 
+  - Dynamic UI Extension (`llamacpp_client_extension.js`): Input fields now automatically show/hide based on the selected endpoint (e.g., chat fields only appear when using `chat_completions`).
+  - Added native `images` (IMAGE tensor) input pin for direct connection with ComfyUI image nodes.
+  - Added `debug_mode` toggle to the node UI for detailed console logging.
+- **Multimodal Improvements**: 
+  - Automated conversion of ComfyUI IMAGE tensors to Base64 strings.
+  - Automated handling of RGBA/Grayscale to RGB conversion to prevent JPEG encoding errors.
+  - Automated prefixing of `data:image/jpeg;base64,` to raw Base64 strings.
+  - OpenAI Vision API compatible `content` array building.
+
+### Changed
+- **Major Code Refactoring**: Split the monolithic `llamacpp_client_node.py` into modular components:
+  - `utils/llama_client.py`: API request handling and endpoint logic.
+  - `utils/image_utils.py`: Image tensor processing and Vision API payload construction.
+  - `utils/param_utils.py`: Parameter mapping and JSON cleanup.
+  - `utils/logger.py`: Centralized debug logging system.
+- `n_predict` and `max_tokens` maximum limits increased from `100,000` to `1,000,000` to support massive context windows.
+
+### Fixed
+- Fixed an issue where `image_data` was not being correctly mapped and sent to the `/v1/chat/completions` endpoint.
+- Fixed JSON parsing silently failing on malformed `image_data` strings.
+
 ## [1.0.0] - 2025-08-05
 
 ### Added
