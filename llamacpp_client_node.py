@@ -27,6 +27,24 @@ class LlamaCppClientNode:
                 }),
             },
             "optional": {
+                "system_message": ("STRING", {
+                    "default": "",
+                    "multiline": True,
+                    "tooltip": "System message for chat"
+                }),
+                "user_message": ("STRING", {
+                    "default": "",
+                    "multiline": True,
+                    "tooltip": "User message for chat"
+                }),
+                "temperature": ("FLOAT", {
+                    "default": 0.8,
+                    "min": 0.0,
+                    "max": 10.0,
+                    "step": 0.01,
+                    "tooltip": "Sampling temperature"
+                }),
+                
                 # Connection & Auth
                 "api_key": ("STRING", {
                     "default": "",
@@ -46,13 +64,6 @@ class LlamaCppClientNode:
                     "min": -1,
                     "max": 1000000,
                     "tooltip": "Number of tokens to predict (-1 = infinity)"
-                }),
-                "temperature": ("FLOAT", {
-                    "default": 0.8,
-                    "min": 0.0,
-                    "max": 10.0,
-                    "step": 0.01,
-                    "tooltip": "Sampling temperature"
                 }),
                 "top_k": ("INT", {
                     "default": 40,
@@ -304,16 +315,6 @@ class LlamaCppClientNode:
                     "default": "[]",
                     "multiline": True,
                     "tooltip": "JSON array of chat messages (for chat_completions endpoint)"
-                }),
-                "system_message": ("STRING", {
-                    "default": "",
-                    "multiline": True,
-                    "tooltip": "System message for chat"
-                }),
-                "user_message": ("STRING", {
-                    "default": "",
-                    "multiline": True,
-                    "tooltip": "User message for chat"
                 }),
                 "assistant_message": ("STRING", {
                     "default": "",

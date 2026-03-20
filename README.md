@@ -20,9 +20,9 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 ## 🚀 Key Capabilities
 
 ### **Visual Workflow Enhancements (NEW)**
-- **Dynamic UI**: Input fields automatically show/hide based on the selected endpoint (e.g., chat fields only appear when using `chat_completions`).
-- **Direct Image Input**: Connect ComfyUI `IMAGE` tensors directly to the node for seamless Multimodal/Vision processing (automatically converts to Base64).
-- **Debug Mode**: Toggle detailed console logging to inspect raw API payloads and troubleshooting.
+- **Dynamic UI**: Input fields automatically show/hide based on the selected endpoint (e.g., chat fields only appear when using `chat_completions`).不要なウィジェットは非表示ではなく完全に動的に削除・再構築されるため、意図しない表示崩れが発生しません。
+- **Direct Image Input**: Connect ComfyUI `IMAGE` tensors directly to the node for seamless Multimodal/Vision processing (automatically converts to Base64)。画像入力ピンが接続された際は、関連する `image_data` テキスト入力欄が自動で非表示になります。
+- **Debug Mode**: Toggle detailed console logging to inspect raw API payloads and troubleshooting。
 
 ### **Complete API Coverage**
 | Endpoint | Purpose | What You Can Do |
