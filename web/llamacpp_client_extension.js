@@ -4,14 +4,34 @@ import { app } from "../../scripts/app.js";
 
 console.log("[LlamaCppClient] App imported successfully.");
 
+// 各エンドポイントで使用されるパラメータの完全なリスト
 const endpointFields = {
-    "completion": ["prompt"],
-    "chat_completions": ["messages", "system_message", "user_message", "assistant_message", "max_tokens", "model", "tools", "tool_choice", "response_format", "image_data"],
+    "completion": [
+        "prompt", "n_predict", "temperature", "top_k", "top_p", "min_p", "seed",
+        "dynatemp_range", "dynatemp_exponent", "xtc_probability", "xtc_threshold",
+        "repeat_penalty", "repeat_last_n", "presence_penalty", "frequency_penalty",
+        "dry_multiplier", "dry_base", "dry_allowed_length", "dry_penalty_last_n",
+        "dry_sequence_breakers", "mirostat", "mirostat_tau", "mirostat_eta",
+        "typical_p", "n_keep", "stop_sequences", "ignore_eos", "stream", "n_probs",
+        "min_keep", "post_sampling_probs", "return_tokens", "timings_per_token",
+        "grammar", "json_schema", "logit_bias", "cache_prompt", "id_slot", "samplers",
+        "t_max_predict_ms", "lora", "response_fields", "image_data"
+    ],
+    "chat_completions": [
+        "messages", "system_message", "user_message", "assistant_message", "max_tokens", 
+        "model", "tools", "tool_choice", "response_format", "image_data",
+        "temperature", "top_k", "top_p", "min_p", "seed", "stream", "stop_sequences",
+        "presence_penalty", "frequency_penalty", "n_probs"
+    ],
     "embeddings": ["input_text", "encoding_format", "embd_normalize", "model"],
     "tokenize": ["content", "add_special", "parse_special", "with_pieces"],
     "detokenize": ["tokens"],
     "apply_template": ["messages"],
-    "infill": ["input_prefix", "input_suffix", "input_extra"],
+    "infill": [
+        "input_prefix", "input_suffix", "input_extra", "prompt",
+        "temperature", "top_k", "top_p", "min_p", "seed", "stream",
+        "n_predict", "stop_sequences", "repeat_penalty", "repeat_last_n"
+    ],
     "reranking": ["query", "documents", "top_n", "model"]
 };
 
@@ -44,11 +64,12 @@ function updateUI(node) {
         const currentEndpoint = endpointWidget.value;
         const fieldsToShow = endpointFields[currentEndpoint] || [];
 
-        // imagesピンの接続チェック
+        // images ピンの接続チェック
         let hasImageLink = false;
         if (node.inputs) {
             for (let j = 0; j < node.inputs.length; j++) {
-                if ((node.inputs[j].name === "images" || node.inputs[j].type === "IMAGE") && node.inputs[j].link != null) {
+                const input = node.inputs[j];
+                if (input && (input.name === "images" || input.type === "IMAGE") && input.link != null) {
                     hasImageLink = true;
                     break;
                 }
@@ -70,7 +91,7 @@ function updateUI(node) {
 
             if (isVisible) {
                 newWidgets.push(w);
-                // DOM要素（textareaなど）を再表示
+                // DOM 要素（textarea など）を再表示
                 if (w.inputEl) {
                     w.inputEl.style.display = "block";
                     w.inputEl.hidden = false;
@@ -83,7 +104,7 @@ function updateUI(node) {
                     w.element.hidden = false;
                 }
             } else {
-                // DOM要素（textareaなど）を隠す
+                // DOM 要素（textarea など）を隠す
                 if (w.inputEl) {
                     w.inputEl.style.display = "none";
                     w.inputEl.hidden = true;
@@ -179,9 +200,9 @@ function initializeWidgetValues(node) {
 function setupNode(node) {
     if (!node.widgets) return;
 
-    // マスターのウィジェットリストを保存しておく (Convert to Inputなどで減る場合も考慮)
+    // マスターのウィジェットリストを保存しておく (Convert to Input で減る場合も考慮)
     if (!node.masterWidgets) {
-        node.masterWidgets = Array.from(node.widgets);
+        node.masterWidgets = node.widgets ? Array.from(node.widgets) : [];
     }
 
     // Initialize widget values to safe defaults
@@ -236,7 +257,7 @@ function setupNode(node) {
         node._llamaConnWrapped = true;
     }
 
-    // 初回のUI更新
+    // 初回の UI 更新
     updateUI(node);
 }
 
