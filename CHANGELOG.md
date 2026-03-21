@@ -8,6 +8,12 @@
 - Improved JavaScript extension robustness.
   - Added fallback for `node.masterWidgets` copy operation (when undefined).
   - Added safety check for `images` pin detection logic (check for undefined `input`).
+- Added numpy array support in `build_vision_content` function.
+  - Modified `utils/image_utils.py` to handle both `torch.Tensor` and `numpy.ndarray` types.
+  - This allows the function to process numpy arrays in addition to torch tensors.
+- Updated test tensor shape in `test_optimized_features.py`.
+  - Changed `test_build_vision_content_with_tensor` to use ComfyUI standard 4D tensor shape `(1, 256, 256, 3)` instead of 3D shape.
+  - This aligns with ComfyUI's IMAGE tensor format [Batch, H, W, C].
 
 ### 2026-03-20
 - Fixed `image_data` widget visibility toggle issue.
