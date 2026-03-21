@@ -1,4 +1,8 @@
 ### 2026-03-21
+- Fixed `process_request` parameter order mismatch.
+  - Added missing `system_message` and `user_message` parameters to match `INPUT_TYPES` definition.
+  - Reordered parameters to ensure ComfyUI passes arguments in the correct order.
+- Updated `NODE_CLASS_MAPPINGS` and `NODE_DISPLAY_NAME_MAPPINGS` to use `"LlamaCppClientNode"` as the key.
 - Restored and completed `process_request` method for Phase 8: Multimodal Integration.
   - Updated `RETURN_TYPES` to: `("STRING", "STRING", "STRING", "INT", "JSON")`
   - Updated `RETURN_NAMES` to: `("response", "raw_response", "error", "status_code", "metadata")`

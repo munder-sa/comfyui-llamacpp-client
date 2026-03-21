@@ -588,98 +588,76 @@ class LlamaCppClientNode:
         server_url: str,
         endpoint: str,
         prompt: str,
-        # Connection & Auth
+        # Optional parameters - must match INPUT_TYPES order
+        system_message: str = "",
+        user_message: str = "",
+        temperature: float = 0.8,
         api_key: str = "",
         timeout: int = 600,
-        # Core Generation Parameters
         n_predict: int = -1,
-        temperature: float = 0.8,
         top_k: int = 40,
         top_p: float = 0.95,
         min_p: float = 0.05,
         seed: int = -1,
-        # Dynamic Temperature
         dynatemp_range: float = 0.0,
         dynatemp_exponent: float = 1.0,
-        # XTC Sampling
         xtc_probability: float = 0.0,
         xtc_threshold: float = 0.1,
-        # Repetition Control
         repeat_penalty: float = 1.1,
         repeat_last_n: int = 64,
         presence_penalty: float = 0.0,
         frequency_penalty: float = 0.0,
-        # DRY Sampling
         dry_multiplier: float = 0.0,
         dry_base: float = 1.75,
         dry_allowed_length: int = 2,
         dry_penalty_last_n: int = -1,
         dry_sequence_breakers: str = '["\\n", ":", "\\"", "*"]',
-        # Mirostat
         mirostat: int = 0,
         mirostat_tau: float = 5.0,
         mirostat_eta: float = 0.1,
-        # Other Sampling
         typical_p: float = 1.0,
-        # Control Parameters
         n_keep: int = 0,
         stop_sequences: str = "[]",
         ignore_eos: bool = False,
-        # Streaming and Output
         stream: bool = False,
         n_probs: int = 0,
         min_keep: int = 0,
         post_sampling_probs: bool = False,
         return_tokens: bool = False,
         timings_per_token: bool = False,
-        # Grammar and JSON
         grammar: str = "",
         json_schema: str = "",
         logit_bias: str = "[]",
-        # Cache and Slot Management
         cache_prompt: bool = True,
         id_slot: int = -1,
-        # Sampler Order
         samplers: str = '["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]',
-        # Timing Constraints
         t_max_predict_ms: int = 0,
-        # Chat-specific parameters
         messages: str = "[]",
         assistant_message: str = "",
         max_tokens: int = -1,
         model: str = "",
-        # Function calling
         tools: str = "[]",
         tool_choice: str = "auto",
         response_format: str = "",
-        # Embeddings-specific
         input_text: str = "",
         encoding_format: str = "float",
         embd_normalize: int = 2,
-        # Tokenization
         content: str = "",
         tokens: str = "[]",
         add_special: bool = False,
         parse_special: bool = True,
         with_pieces: bool = False,
-        # Infill-specific
         input_prefix: str = "",
         input_suffix: str = "",
         input_extra: str = "[]",
-        # Reranking-specific
         query: str = "",
         documents: str = "[]",
         top_n: int = 10,
-        # LoRA adapters
         lora: str = "[]",
-        # Response fields selection
         response_fields: str = "[]",
-        # Multimodal support
         image_data: str = "[]",
         images: Any = None,
-        # Metadata extraction
         extract_metadata: bool = True,
-        # Debugging
         debug_mode: bool = True,
     ) -> Tuple[str, str, str, int, Dict[str, Any]]:
         """
@@ -903,5 +881,11 @@ class LlamaCppClientNode:
         return response_text, raw_response, "", status_code, metadata
 
 
-# Note: extract_image_metadata_from_tensor is deprecated.
-# Use extract_tensor_metadata from utils.image_utils instead.
+# ComfyUI Node Registration
+NODE_CLASS_MAPPINGS = {
+    "LlamaCppClientNode": LlamaCppClientNode,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "LlamaCppClientNode": "LlamaCpp Client (Multimodal)"
+}
