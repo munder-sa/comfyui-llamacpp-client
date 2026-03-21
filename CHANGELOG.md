@@ -1,3 +1,23 @@
+### 2026-03-22
+- Improved system message placement logic in `chat_completions` endpoint.
+  - Refactored message building logic in `llamacpp_client_node.py` to use a stack-based approach that guarantees system message is always placed at index 0.
+  - Implemented priority-based message construction:
+    1. System prompt (highest priority)
+    2. History messages (with duplicate prevention)
+    3. User message and vision content integration
+    4. Assistant message
+  - Added safety net fallback to insert empty system prompt if not present.
+- Added comprehensive debug logging in `llamacpp_client_node.py`.
+  - Added detailed logging for all input parameters in `process_request` method.
+  - Added system message position verification logic with pass/fail indicators.
+- Enhanced metadata extraction functionality in `utils/image_utils.py`.
+  - Added `extract_metadata` parameter to `build_vision_content` function.
+  - Enhanced image metadata extraction capabilities.
+  - Added `batch_index` parameter to `extract_tensor_metadata` function.
+- Improved type hints in `utils/llama_client.py`.
+  - Organized type hint imports.
+  - Added explicit type definitions.
+
 ### 2026-03-21
 - Fixed `process_request` parameter order mismatch.
   - Added missing `system_message` and `user_message` parameters to match `INPUT_TYPES` definition.

@@ -182,6 +182,9 @@ def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
             elif isinstance(value, str) and value.lower() in ("true", "false"):
                 # Handle string boolean representations
                 cleaned[key] = value.lower() == "true"
+            elif isinstance(value, str):
+                # 文字列だが JSON パースできない場合、そのまま使用
+                cleaned[key] = value
         else:
             cleaned[key] = value
 

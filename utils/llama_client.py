@@ -212,15 +212,24 @@ class LlamaCppAPIClient:
         messages: List[Dict[str, str]] = []
 
         # Parse existing messages if provided
-        if kwargs.get("messages") and kwargs["messages"].strip():
-            try:
-                messages = json.loads(kwargs["messages"])
-            except json.JSONDecodeError:
-                pass
+        messages_input = kwargs.get("messages")
+        if messages_input:
+            if isinstance(messages_input, str):
+                # 文字列の場合は JSON パース
+                try:
+                    messages = json.loads(messages_input)
+                except json.JSONDecodeError:
+                    pass
+            elif isinstance(messages_input, list):
+                # リストの場合はそのまま使用
+                messages = messages_input
+            else:
+                messages = []
 
         # Add individual messages if provided
-        if kwargs.get("system_message") and kwargs["system_message"].strip():
-            messages.append({"role": "system", "content": kwargs["system_message"]})
+        system_message = kwargs.get("system_message")
+        if isinstance(system_message, str) and system_message.strip():
+            messages.append({"role": "system", "content": system_message})
 
         # Build user content (support for multimodal / vision)
         user_text = kwargs.get("user_message") or kwargs.get("prompt", "")

@@ -666,6 +666,85 @@ class LlamaCppClientNode:
         Returns:
             Tuple of (response, raw_response, error, status_code, metadata)
         """
+        # Debug: Print all input parameters to verify correct mapping
+        # This ensures that external inputs (especially system_message) are correctly mapped to variables
+        print("=" * 60)
+        print("[DEBUG] process_request called with:")
+        print(f"  server_url: {server_url}")
+        print(f"  endpoint: {endpoint}")
+        print(f"  prompt: {prompt[:50]}..." if len(prompt) > 50 else f"  prompt: {prompt}")
+        print(f"  system_message: {system_message[:50]}..." if len(system_message) > 50 else f"  system_message: {system_message}")
+        print(f"  user_message: {user_message[:50]}..." if len(user_message) > 50 else f"  user_message: {user_message}")
+        print(f"  temperature: {temperature}")
+        print(f"  api_key: {api_key}")
+        print(f"  timeout: {timeout}")
+        print(f"  n_predict: {n_predict}")
+        print(f"  top_k: {top_k}")
+        print(f"  top_p: {top_p}")
+        print(f"  min_p: {min_p}")
+        print(f"  seed: {seed}")
+        print(f"  dynatemp_range: {dynatemp_range}")
+        print(f"  dynatemp_exponent: {dynatemp_exponent}")
+        print(f"  xtc_probability: {xtc_probability}")
+        print(f"  xtc_threshold: {xtc_threshold}")
+        print(f"  repeat_penalty: {repeat_penalty}")
+        print(f"  repeat_last_n: {repeat_last_n}")
+        print(f"  presence_penalty: {presence_penalty}")
+        print(f"  frequency_penalty: {frequency_penalty}")
+        print(f"  dry_multiplier: {dry_multiplier}")
+        print(f"  dry_base: {dry_base}")
+        print(f"  dry_allowed_length: {dry_allowed_length}")
+        print(f"  dry_penalty_last_n: {dry_penalty_last_n}")
+        print(f"  dry_sequence_breakers: {dry_sequence_breakers}")
+        print(f"  mirostat: {mirostat}")
+        print(f"  mirostat_tau: {mirostat_tau}")
+        print(f"  mirostat_eta: {mirostat_eta}")
+        print(f"  typical_p: {typical_p}")
+        print(f"  n_keep: {n_keep}")
+        print(f"  stop_sequences: {stop_sequences}")
+        print(f"  ignore_eos: {ignore_eos}")
+        print(f"  stream: {stream}")
+        print(f"  n_probs: {n_probs}")
+        print(f"  min_keep: {min_keep}")
+        print(f"  post_sampling_probs: {post_sampling_probs}")
+        print(f"  return_tokens: {return_tokens}")
+        print(f"  timings_per_token: {timings_per_token}")
+        print(f"  grammar: {grammar[:50]}..." if len(grammar) > 50 else f"  grammar: {grammar}")
+        print(f"  json_schema: {json_schema[:50]}..." if len(json_schema) > 50 else f"  json_schema: {json_schema}")
+        print(f"  logit_bias: {logit_bias}")
+        print(f"  cache_prompt: {cache_prompt}")
+        print(f"  id_slot: {id_slot}")
+        print(f"  samplers: {samplers}")
+        print(f"  t_max_predict_ms: {t_max_predict_ms}")
+        print(f"  messages: {messages[:50]}..." if len(messages) > 50 else f"  messages: {messages}")
+        print(f"  assistant_message: {assistant_message[:50]}..." if len(assistant_message) > 50 else f"  assistant_message: {assistant_message}")
+        print(f"  max_tokens: {max_tokens}")
+        print(f"  model: {model}")
+        print(f"  tools: {tools[:50]}..." if len(tools) > 50 else f"  tools: {tools}")
+        print(f"  tool_choice: {tool_choice}")
+        print(f"  response_format: {response_format[:50]}..." if len(response_format) > 50 else f"  response_format: {response_format}")
+        print(f"  input_text: {input_text[:50]}..." if len(input_text) > 50 else f"  input_text: {input_text}")
+        print(f"  encoding_format: {encoding_format}")
+        print(f"  embd_normalize: {embd_normalize}")
+        print(f"  content: {content[:50]}..." if len(content) > 50 else f"  content: {content}")
+        print(f"  tokens: {tokens}")
+        print(f"  add_special: {add_special}")
+        print(f"  parse_special: {parse_special}")
+        print(f"  with_pieces: {with_pieces}")
+        print(f"  input_prefix: {input_prefix[:50]}..." if len(input_prefix) > 50 else f"  input_prefix: {input_prefix}")
+        print(f"  input_suffix: {input_suffix[:50]}..." if len(input_suffix) > 50 else f"  input_suffix: {input_suffix}")
+        print(f"  input_extra: {input_extra}")
+        print(f"  query: {query[:50]}..." if len(query) > 50 else f"  query: {query}")
+        print(f"  documents: {documents[:50]}..." if len(documents) > 50 else f"  documents: {documents}")
+        print(f"  top_n: {top_n}")
+        print(f"  lora: {lora[:50]}..." if len(lora) > 50 else f"  lora: {lora}")
+        print(f"  response_fields: {response_fields}")
+        print(f"  image_data: {image_data[:50]}..." if len(image_data) > 50 else f"  image_data: {image_data}")
+        print(f"  images: {images}")
+        print(f"  extract_metadata: {extract_metadata}")
+        print(f"  debug_mode: {debug_mode}")
+        print("=" * 60)
+        
         # Initialize metadata dictionary
         metadata: Dict[str, Any] = {}
         
@@ -676,209 +755,282 @@ class LlamaCppClientNode:
         # Initialize client
         client = LlamaCppAPIClient(server_url, api_key=api_key, timeout=timeout)
         
-        # Build request payload based on endpoint
-        payload: Dict[str, Any] = {}
-        
-        # Handle multimodal content if images are provided
-        if images is not None:
-            # Process images and build vision content
-            try:
-                # Build vision content for multimodal models
-                user_text = prompt or ""
-                vision_content, img_metadata_list = build_vision_content(
-                    user_text=user_text,
-                    image_data=[],  # No JSON image data
-                    tensor_images=images,
-                    jpeg_quality=DEFAULT_JPEG_QUALITY,
-                    extract_metadata=extract_metadata,
-                )
-                
-                # Collect metadata from build_vision_content
-                if img_metadata_list:
-                    for i, meta in enumerate(img_metadata_list):
-                        metadata[f"image_{i}"] = meta
-                
-                # Add vision content to payload for chat_completions endpoint
-                if endpoint == "chat_completions":
-                    payload["messages"] = [
-                        {
-                            "role": "user",
-                            "content": vision_content
-                        }
-                    ]
-                else:
-                    # For other endpoints, use prompt as text
-                    payload["prompt"] = prompt
-            except Exception as e:
-                log_error(f"Error processing images: {e}", e)
-                return "", "", str(e), 500, metadata
-        
-        # Build payload based on endpoint
-        if endpoint == "completion":
-            payload["prompt"] = prompt
-            payload["n_predict"] = n_predict
-            payload["temperature"] = temperature
-            payload["top_k"] = top_k
-            payload["top_p"] = top_p
-            payload["min_p"] = min_p
-            payload["seed"] = seed
-            payload["repeat_penalty"] = repeat_penalty
-            payload["repeat_last_n"] = repeat_last_n
-            payload["presence_penalty"] = presence_penalty
-            payload["frequency_penalty"] = frequency_penalty
-            payload["stop"] = json.loads(stop_sequences) if stop_sequences else []
-            payload["stream"] = stream
-            payload["cache_prompt"] = cache_prompt
-            payload["id_slot"] = id_slot
-            payload["samplers"] = json.loads(samplers) if samplers else []
-            payload["t_max_predict_ms"] = t_max_predict_ms
-            payload["grammar"] = grammar
-            payload["logit_bias"] = json.loads(logit_bias) if logit_bias else []
-            payload["n_probs"] = n_probs
-            payload["min_keep"] = min_keep
-            payload["post_sampling_probs"] = post_sampling_probs
-            payload["return_tokens"] = return_tokens
-            payload["timings_per_token"] = timings_per_token
-            payload["ignore_eos"] = ignore_eos
-            payload["n_keep"] = n_keep
-            payload["dynatemp_range"] = dynatemp_range
-            payload["dynatemp_exponent"] = dynatemp_exponent
-            payload["xtc_probability"] = xtc_probability
-            payload["xtc_threshold"] = xtc_threshold
-            payload["mirostat"] = mirostat
-            payload["mirostat_tau"] = mirostat_tau
-            payload["mirostat_eta"] = mirostat_eta
-            payload["typical_p"] = typical_p
-            payload["dry_multiplier"] = dry_multiplier
-            payload["dry_base"] = dry_base
-            payload["dry_allowed_length"] = dry_allowed_length
-            payload["dry_penalty_last_n"] = dry_penalty_last_n
-            payload["dry_sequence_breakers"] = json.loads(dry_sequence_breakers) if dry_sequence_breakers else []
-            payload["lora"] = json.loads(lora) if lora else []
-            
-        elif endpoint == "chat_completions":
-            # Use vision content if images were provided
-            if images is not None and "messages" in payload:
-                pass  # Messages already set from vision content
-            else:
-                payload["messages"] = json.loads(messages) if messages else []
-                if assistant_message:
-                    payload["messages"].append({"role": "assistant", "content": assistant_message})
-            payload["max_tokens"] = max_tokens
-            payload["model"] = model
-            payload["temperature"] = temperature
-            payload["top_k"] = top_k
-            payload["top_p"] = top_p
-            payload["min_p"] = min_p
-            payload["seed"] = seed
-            payload["stop"] = json.loads(stop_sequences) if stop_sequences else []
-            payload["stream"] = stream
-            payload["tools"] = json.loads(tools) if tools else []
-            payload["tool_choice"] = tool_choice
-            payload["response_format"] = json.loads(response_format) if response_format else None
-            payload["grammar"] = grammar
-            payload["logit_bias"] = json.loads(logit_bias) if logit_bias else []
-            payload["n_probs"] = n_probs
-            payload["min_keep"] = min_keep
-            payload["post_sampling_probs"] = post_sampling_probs
-            payload["return_tokens"] = return_tokens
-            payload["timings_per_token"] = timings_per_token
-            payload["ignore_eos"] = ignore_eos
-            payload["dynatemp_range"] = dynatemp_range
-            payload["dynatemp_exponent"] = dynatemp_exponent
-            payload["xtc_probability"] = xtc_probability
-            payload["xtc_threshold"] = xtc_threshold
-            payload["repeat_penalty"] = repeat_penalty
-            payload["repeat_last_n"] = repeat_last_n
-            payload["presence_penalty"] = presence_penalty
-            payload["frequency_penalty"] = frequency_penalty
-            payload["mirostat"] = mirostat
-            payload["mirostat_tau"] = mirostat_tau
-            payload["mirostat_eta"] = mirostat_eta
-            payload["typical_p"] = typical_p
-            payload["lora"] = json.loads(lora) if lora else []
-            
-        elif endpoint == "embeddings":
-            payload["input_text"] = input_text
-            payload["encoding_format"] = encoding_format
-            payload["embd_normalize"] = embd_normalize
-            
-        elif endpoint == "tokenize":
-            payload["content"] = content
-            payload["add_special"] = add_special
-            payload["parse_special"] = parse_special
-            payload["with_pieces"] = with_pieces
-            
-        elif endpoint == "detokenize":
-            payload["tokens"] = json.loads(tokens) if tokens else []
-            
-        elif endpoint == "apply_template":
-            payload["content"] = content
-            payload["add_special"] = add_special
-            
-        elif endpoint == "infill":
-            payload["input_prefix"] = input_prefix
-            payload["input_suffix"] = input_suffix
-            payload["input_extra"] = json.loads(input_extra) if input_extra else []
-            payload["n_predict"] = n_predict
-            payload["temperature"] = temperature
-            payload["top_k"] = top_k
-            payload["top_p"] = top_p
-            payload["min_p"] = min_p
-            payload["seed"] = seed
-            payload["repeat_penalty"] = repeat_penalty
-            payload["repeat_last_n"] = repeat_last_n
-            payload["presence_penalty"] = presence_penalty
-            payload["frequency_penalty"] = frequency_penalty
-            payload["stop"] = json.loads(stop_sequences) if stop_sequences else []
-            payload["stream"] = stream
-            payload["cache_prompt"] = cache_prompt
-            payload["id_slot"] = id_slot
-            payload["samplers"] = json.loads(samplers) if samplers else []
-            payload["t_max_predict_ms"] = t_max_predict_ms
-            payload["grammar"] = grammar
-            payload["logit_bias"] = json.loads(logit_bias) if logit_bias else []
-            payload["n_probs"] = n_probs
-            payload["min_keep"] = min_keep
-            payload["post_sampling_probs"] = post_sampling_probs
-            payload["return_tokens"] = return_tokens
-            payload["timings_per_token"] = timings_per_token
-            payload["ignore_eos"] = ignore_eos
-            payload["n_keep"] = n_keep
-            payload["dynatemp_range"] = dynatemp_range
-            payload["dynatemp_exponent"] = dynatemp_exponent
-            payload["xtc_probability"] = xtc_probability
-            payload["xtc_threshold"] = xtc_threshold
-            payload["mirostat"] = mirostat
-            payload["mirostat_tau"] = mirostat_tau
-            payload["mirostat_eta"] = mirostat_eta
-            payload["typical_p"] = typical_p
-            payload["lora"] = json.loads(lora) if lora else []
-            
-        elif endpoint == "reranking":
-            payload["query"] = query
-            payload["documents"] = json.loads(documents) if documents else []
-            payload["top_n"] = top_n
-            
-        # Execute the request
+        # Execute the request based on endpoint
         try:
-            response = client.execute(endpoint, payload)
+            response_text = ""
+            raw_response = ""
+            error = ""
             status_code = 200
-            raw_response = json.dumps(response) if isinstance(response, dict) else str(response)
+            metadata_list = []
+            
+            if endpoint == "completion":
+                # Build kwargs for handle_completion
+                kwargs = {
+                    "prompt": prompt,
+                    "n_predict": n_predict,
+                    "temperature": temperature,
+                    "top_k": top_k,
+                    "top_p": top_p,
+                    "min_p": min_p,
+                    "seed": seed,
+                    "repeat_penalty": repeat_penalty,
+                    "repeat_last_n": repeat_last_n,
+                    "presence_penalty": presence_penalty,
+                    "frequency_penalty": frequency_penalty,
+                    "stop": json.loads(stop_sequences) if stop_sequences else [],
+                    "stream": stream,
+                    "cache_prompt": cache_prompt,
+                    "id_slot": id_slot,
+                    "samplers": json.loads(samplers) if samplers else [],
+                    "t_max_predict_ms": t_max_predict_ms,
+                    "grammar": grammar,
+                    "logit_bias": json.loads(logit_bias) if logit_bias else [],
+                    "n_probs": n_probs,
+                    "min_keep": min_keep,
+                    "post_sampling_probs": post_sampling_probs,
+                    "return_tokens": return_tokens,
+                    "timings_per_token": timings_per_token,
+                    "ignore_eos": ignore_eos,
+                    "n_keep": n_keep,
+                    "dynatemp_range": dynatemp_range,
+                    "dynatemp_exponent": dynatemp_exponent,
+                    "xtc_probability": xtc_probability,
+                    "xtc_threshold": xtc_threshold,
+                    "mirostat": mirostat,
+                    "mirostat_tau": mirostat_tau,
+                    "mirostat_eta": mirostat_eta,
+                    "typical_p": typical_p,
+                    "lora": json.loads(lora) if lora else [],
+                }
+                response, raw_response, error, status_code = client.handle_completion(**kwargs)
+                
+            elif endpoint == "chat_completions":
+                # Build messages list with proper handling for multimodal content
+                # Using stack-based approach to guarantee system message is always first
+                final_messages = []
+                
+                # [REQUIRED] System prompt placement (highest priority)
+                if system_message:
+                    final_messages.append({"role": "system", "content": system_message})
+                
+                # [OPTIONAL] History messages (prevent duplicate system prompts)
+                if messages:
+                    try:
+                        history_messages = json.loads(messages)
+                        for msg in history_messages:
+                            # Prevent duplicate system prompt: skip existing system role
+                            if msg.get("role") == "system" and system_message:
+                                continue  # Prioritize external system_message
+                            final_messages.append(msg)
+                    except json.JSONDecodeError:
+                        log_error("Invalid messages JSON format")
+                
+                # [REQUIRED] User message and vision content integration
+                # Combine user_message and vision_content into a single user message if both exist
+                combined_user_content = []
+                
+                # Add text content
+                if user_message:
+                    combined_user_content.append({"type": "text", "text": user_message})
+                elif prompt:
+                    combined_user_content.append({"type": "text", "text": prompt})
+                
+                # Add vision content if images are provided
+                if images is not None:
+                    try:
+                        user_text = prompt or user_message or ""
+                        vision_content, img_metadata_list = build_vision_content(
+                            user_text=user_text,
+                            image_data=[],  # No JSON image data
+                            tensor_images=images,
+                            jpeg_quality=DEFAULT_JPEG_QUALITY,
+                            extract_metadata=extract_metadata,
+                        )
+                        
+                        # Collect metadata from build_vision_content
+                        if img_metadata_list:
+                            for i, meta in enumerate(img_metadata_list):
+                                metadata[f"image_{i}"] = meta
+                        
+                        # Add vision content to combined user message
+                        if isinstance(vision_content, list):
+                            combined_user_content.extend(vision_content)
+                        else:
+                            combined_user_content.append({"type": "image_url", "image_url": {"url": vision_content}})
+                    except Exception as e:
+                        log_error(f"Error processing images: {e}", e)
+                        return "", "", str(e), 500, metadata
+                
+                # Add combined user message if there's content
+                if combined_user_content:
+                    final_messages.append({"role": "user", "content": combined_user_content})
+                
+                # [OPTIONAL] Assistant message
+                if assistant_message:
+                    final_messages.append({"role": "assistant", "content": assistant_message})
+                
+                # [REQUIRED] Safety net: Ensure system message exists at index 0
+                if not final_messages or final_messages[0].get("role") != "system":
+                    log_debug("Safety net: Inserting empty system prompt as fallback")
+                    final_messages.insert(0, {"role": "system", "content": ""})
+                
+                # [REQUIRED] Final verification - prove system message is at index 0
+                if final_messages and final_messages[0].get("role") == "system":
+                    log_debug("✓ System message is correctly positioned at index 0")
+                else:
+                    log_error("✗ System message is NOT at index 0! This will cause API errors.")
+                
+                # Build kwargs for handle_chat_completions (returns 5 values)
+                kwargs = {
+                    "messages": final_messages,
+                    "system_message": system_message,
+                    "user_message": user_message,
+                    "prompt": prompt,
+                    "assistant_message": assistant_message,
+                    "max_tokens": max_tokens,
+                    "model": model,
+                    "temperature": temperature,
+                    "top_k": top_k,
+                    "top_p": top_p,
+                    "min_p": min_p,
+                    "seed": seed,
+                    "stop": json.loads(stop_sequences) if stop_sequences else [],
+                    "stream": stream,
+                    "tools": json.loads(tools) if tools else [],
+                    "tool_choice": tool_choice,
+                    "response_format": json.loads(response_format) if response_format else None,
+                    "grammar": grammar,
+                    "logit_bias": json.loads(logit_bias) if logit_bias else [],
+                    "n_probs": n_probs,
+                    "min_keep": min_keep,
+                    "post_sampling_probs": post_sampling_probs,
+                    "return_tokens": return_tokens,
+                    "timings_per_token": timings_per_token,
+                    "ignore_eos": ignore_eos,
+                    "dynatemp_range": dynatemp_range,
+                    "dynatemp_exponent": dynatemp_exponent,
+                    "xtc_probability": xtc_probability,
+                    "xtc_threshold": xtc_threshold,
+                    "repeat_penalty": repeat_penalty,
+                    "repeat_last_n": repeat_last_n,
+                    "presence_penalty": presence_penalty,
+                    "frequency_penalty": frequency_penalty,
+                    "mirostat": mirostat,
+                    "mirostat_tau": mirostat_tau,
+                    "mirostat_eta": mirostat_eta,
+                    "typical_p": typical_p,
+                    "lora": json.loads(lora) if lora else [],
+                    "image_data": image_data,
+                    "images": images,
+                    "extract_metadata": extract_metadata,
+                }
+                # Handle chat_completions returns 5 values
+                response, raw_response, error, status_code, metadata_list = client.handle_chat_completions(**kwargs)
+                
+            elif endpoint == "embeddings":
+                kwargs = {
+                    "input_text": input_text,
+                    "model": model,
+                    "encoding_format": encoding_format,
+                }
+                response, raw_response, error, status_code = client.handle_embeddings(**kwargs)
+                
+            elif endpoint == "tokenize":
+                kwargs = {
+                    "content": content,
+                    "add_special": add_special,
+                    "parse_special": parse_special,
+                    "with_pieces": with_pieces,
+                }
+                response, raw_response, error, status_code = client.handle_tokenize(**kwargs)
+                
+            elif endpoint == "detokenize":
+                kwargs = {
+                    "tokens": tokens,
+                }
+                response, raw_response, error, status_code = client.handle_detokenize(**kwargs)
+                
+            elif endpoint == "apply_template":
+                kwargs = {
+                    "messages": messages,
+                }
+                response, raw_response, error, status_code = client.handle_apply_template(**kwargs)
+                
+            elif endpoint == "infill":
+                kwargs = {
+                    "input_prefix": input_prefix,
+                    "input_suffix": input_suffix,
+                    "input_extra": json.loads(input_extra) if input_extra else [],
+                    "prompt": prompt,
+                    "n_predict": n_predict,
+                    "temperature": temperature,
+                    "top_k": top_k,
+                    "top_p": top_p,
+                    "min_p": min_p,
+                    "seed": seed,
+                    "repeat_penalty": repeat_penalty,
+                    "repeat_last_n": repeat_last_n,
+                    "presence_penalty": presence_penalty,
+                    "frequency_penalty": frequency_penalty,
+                    "stop": json.loads(stop_sequences) if stop_sequences else [],
+                    "stream": stream,
+                    "cache_prompt": cache_prompt,
+                    "id_slot": id_slot,
+                    "samplers": json.loads(samplers) if samplers else [],
+                    "t_max_predict_ms": t_max_predict_ms,
+                    "grammar": grammar,
+                    "logit_bias": json.loads(logit_bias) if logit_bias else [],
+                    "n_probs": n_probs,
+                    "min_keep": min_keep,
+                    "post_sampling_probs": post_sampling_probs,
+                    "return_tokens": return_tokens,
+                    "timings_per_token": timings_per_token,
+                    "ignore_eos": ignore_eos,
+                    "n_keep": n_keep,
+                    "dynatemp_range": dynatemp_range,
+                    "dynatemp_exponent": dynatemp_exponent,
+                    "xtc_probability": xtc_probability,
+                    "xtc_threshold": xtc_threshold,
+                    "mirostat": mirostat,
+                    "mirostat_tau": mirostat_tau,
+                    "mirostat_eta": mirostat_eta,
+                    "typical_p": typical_p,
+                    "lora": json.loads(lora) if lora else [],
+                }
+                response, raw_response, error, status_code = client.handle_infill(**kwargs)
+                
+            elif endpoint == "reranking":
+                kwargs = {
+                    "model": model,
+                    "query": query,
+                    "documents": json.loads(documents) if documents else [],
+                    "top_n": top_n,
+                }
+                response, raw_response, error, status_code = client.handle_reranking(**kwargs)
             
             # Parse response
             if isinstance(response, dict):
                 response_text = response.get("content", response.get("text", ""))
             else:
                 response_text = str(response)
+            
+            # Collect metadata from images
+            if metadata_list:
+                for i, meta in enumerate(metadata_list):
+                    metadata[f"image_{i}"] = meta
+            
+            # Log error if present
+            if error:
+                log_error(f"API Error: {error}")
                 
         except Exception as e:
+            log_error(f"Exception during request: {e}")
             response_text = ""
             raw_response = ""
+            error = str(e)
             status_code = 500
-            return "", "", str(e), status_code, metadata
         
-        return response_text, raw_response, "", status_code, metadata
+        return response_text, raw_response, error, status_code, metadata
 
 
 # ComfyUI Node Registration
