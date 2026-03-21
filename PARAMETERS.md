@@ -501,6 +501,28 @@ A comprehensive reference for all parameters supported by the LlamaCpp Client No
 - **Example**: `'[{"data": "base64string", "id": 1}]'`
 - **Multiline**: Yes
 
+### extract_metadata (BOOLEAN, optional)
+- **Default**: `true`
+- **Description**: Enable extraction of image metadata (dimensions, format, mode, aspect ratio, transparency info, etc.)
+- **Benefit**: When enabled, detailed image metadata is automatically extracted and included in the response metadata. This provides valuable information such as:
+  - Image dimensions (width, height)
+  - Image format (JPEG, PNG, GIF, WEBP, BMP, TIFF)
+  - Color mode (RGB, RGBA, L, etc.)
+  - Aspect ratio calculation
+  - Transparency detection
+  - Batch index for multi-image inputs
+- **Usage**: Particularly useful for multimodal models that benefit from understanding image properties, or when you need to verify image characteristics before processing. The extracted metadata is returned in the response's metadata field and can be used for conditional logic or debugging.
+- **Multiline**: No
+
+---
+
+## Common Parameter Combinations
+- **Default**: `"[]"`
+- **Format**: JSON array of image objects
+- **Description**: Base64-encoded images for multimodal models
+- **Example**: `'[{"data": "base64string", "id": 1}]'`
+- **Multiline**: Yes
+
 ---
 
 ## Common Parameter Combinations
