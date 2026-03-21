@@ -1,9 +1,26 @@
+import json
+from typing import Any, Dict, Tuple
+
 try:
     from utils.llama_client import LlamaCppAPIClient
-    from utils.logger import set_debug_mode
+    from utils.logger import set_debug_mode, log_debug, log_error
+    from utils.image_utils import (
+        build_vision_content,
+        DEFAULT_JPEG_QUALITY,
+        extract_image_metadata,
+        detect_image_format,
+        extract_tensor_metadata,
+    )
 except ImportError:
     from .utils.llama_client import LlamaCppAPIClient
-    from .utils.logger import set_debug_mode
+    from .utils.logger import set_debug_mode, log_debug, log_error
+    from .utils.image_utils import (
+        build_vision_content,
+        DEFAULT_JPEG_QUALITY,
+        extract_image_metadata,
+        detect_image_format,
+        extract_tensor_metadata,
+    )
 
 
 class LlamaCppClientNode:
@@ -548,6 +565,11 @@ class LlamaCppClientNode:
                     "IMAGE",
                     {"tooltip": "ComfyUI image tensor to send to the multimodal model"},
                 ),
+                # Metadata extraction
+                "extract_metadata": (
+                    "BOOLEAN",
+                    {"default": True, "tooltip": "Extract and return image metadata"},
+                ),
                 # Debugging
                 "debug_mode": (
                     "BOOLEAN",
@@ -556,60 +578,330 @@ class LlamaCppClientNode:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING", "INT")
-    RETURN_NAMES = ("response", "raw_response", "error", "status_code")
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "INT", "JSON")
+    RETURN_NAMES = ("response", "raw_response", "error", "status_code", "metadata")
     FUNCTION = "process_request"
     CATEGORY = "AI/LlamaCpp"
 
-    def process_request(self, server_url: str, endpoint: str, prompt: str, **kwargs):
-        """Process the request to llama-server via the API client."""
-        try:
-            # Set debug mode dynamically based on UI toggle
-            is_debug = kwargs.get("debug_mode", True)
-            set_debug_mode(is_debug)
-
-            client = LlamaCppAPIClient(
-                base_url=server_url,
-                api_key=kwargs.get("api_key", ""),
-                timeout=kwargs.get("timeout", 600),
-            )
-
-            if endpoint == "completion":
-                response, raw_response, error, status_code = client.handle_completion(
-                    prompt, **kwargs
+    def process_request(
+        self,
+        server_url: str,
+        endpoint: str,
+        prompt: str,
+        # Connection & Auth
+        api_key: str = "",
+        timeout: int = 600,
+        # Core Generation Parameters
+        n_predict: int = -1,
+        temperature: float = 0.8,
+        top_k: int = 40,
+        top_p: float = 0.95,
+        min_p: float = 0.05,
+        seed: int = -1,
+        # Dynamic Temperature
+        dynatemp_range: float = 0.0,
+        dynatemp_exponent: float = 1.0,
+        # XTC Sampling
+        xtc_probability: float = 0.0,
+        xtc_threshold: float = 0.1,
+        # Repetition Control
+        repeat_penalty: float = 1.1,
+        repeat_last_n: int = 64,
+        presence_penalty: float = 0.0,
+        frequency_penalty: float = 0.0,
+        # DRY Sampling
+        dry_multiplier: float = 0.0,
+        dry_base: float = 1.75,
+        dry_allowed_length: int = 2,
+        dry_penalty_last_n: int = -1,
+        dry_sequence_breakers: str = '["\\n", ":", "\\"", "*"]',
+        # Mirostat
+        mirostat: int = 0,
+        mirostat_tau: float = 5.0,
+        mirostat_eta: float = 0.1,
+        # Other Sampling
+        typical_p: float = 1.0,
+        # Control Parameters
+        n_keep: int = 0,
+        stop_sequences: str = "[]",
+        ignore_eos: bool = False,
+        # Streaming and Output
+        stream: bool = False,
+        n_probs: int = 0,
+        min_keep: int = 0,
+        post_sampling_probs: bool = False,
+        return_tokens: bool = False,
+        timings_per_token: bool = False,
+        # Grammar and JSON
+        grammar: str = "",
+        json_schema: str = "",
+        logit_bias: str = "[]",
+        # Cache and Slot Management
+        cache_prompt: bool = True,
+        id_slot: int = -1,
+        # Sampler Order
+        samplers: str = '["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]',
+        # Timing Constraints
+        t_max_predict_ms: int = 0,
+        # Chat-specific parameters
+        messages: str = "[]",
+        assistant_message: str = "",
+        max_tokens: int = -1,
+        model: str = "",
+        # Function calling
+        tools: str = "[]",
+        tool_choice: str = "auto",
+        response_format: str = "",
+        # Embeddings-specific
+        input_text: str = "",
+        encoding_format: str = "float",
+        embd_normalize: int = 2,
+        # Tokenization
+        content: str = "",
+        tokens: str = "[]",
+        add_special: bool = False,
+        parse_special: bool = True,
+        with_pieces: bool = False,
+        # Infill-specific
+        input_prefix: str = "",
+        input_suffix: str = "",
+        input_extra: str = "[]",
+        # Reranking-specific
+        query: str = "",
+        documents: str = "[]",
+        top_n: int = 10,
+        # LoRA adapters
+        lora: str = "[]",
+        # Response fields selection
+        response_fields: str = "[]",
+        # Multimodal support
+        image_data: str = "[]",
+        images: Any = None,
+        # Metadata extraction
+        extract_metadata: bool = True,
+        # Debugging
+        debug_mode: bool = True,
+    ) -> Tuple[str, str, str, int, Dict[str, Any]]:
+        """
+        Process a request to the llama-server and return the response.
+        
+        Returns:
+            Tuple of (response, raw_response, error, status_code, metadata)
+        """
+        # Initialize metadata dictionary
+        metadata: Dict[str, Any] = {}
+        
+        # Set debug mode
+        if debug_mode:
+            set_debug_mode(True)
+        
+        # Initialize client
+        client = LlamaCppAPIClient(server_url, api_key=api_key, timeout=timeout)
+        
+        # Build request payload based on endpoint
+        payload: Dict[str, Any] = {}
+        
+        # Handle multimodal content if images are provided
+        if images is not None:
+            # Process images and build vision content
+            try:
+                # Build vision content for multimodal models
+                user_text = prompt or ""
+                vision_content, img_metadata_list = build_vision_content(
+                    user_text=user_text,
+                    image_data=[],  # No JSON image data
+                    tensor_images=images,
+                    jpeg_quality=DEFAULT_JPEG_QUALITY,
+                    extract_metadata=extract_metadata,
                 )
-            elif endpoint == "chat_completions":
-                response, raw_response, error, status_code = client.handle_chat_completions(
-                    prompt=prompt, **kwargs
-                )
-            elif endpoint == "embeddings":
-                response, raw_response, error, status_code = client.handle_embeddings(
-                    prompt=prompt, **kwargs
-                )
-            elif endpoint == "tokenize":
-                response, raw_response, error, status_code = client.handle_tokenize(
-                    prompt=prompt, **kwargs
-                )
-            elif endpoint == "detokenize":
-                response, raw_response, error, status_code = client.handle_detokenize(**kwargs)
-            elif endpoint == "apply_template":
-                response, raw_response, error, status_code = client.handle_apply_template(**kwargs)
-            elif endpoint == "infill":
-                response, raw_response, error, status_code = client.handle_infill(
-                    prompt=prompt, **kwargs
-                )
-            elif endpoint == "reranking":
-                response, raw_response, error, status_code = client.handle_reranking(**kwargs)
+                
+                # Collect metadata from build_vision_content
+                if img_metadata_list:
+                    for i, meta in enumerate(img_metadata_list):
+                        metadata[f"image_{i}"] = meta
+                
+                # Add vision content to payload for chat_completions endpoint
+                if endpoint == "chat_completions":
+                    payload["messages"] = [
+                        {
+                            "role": "user",
+                            "content": vision_content
+                        }
+                    ]
+                else:
+                    # For other endpoints, use prompt as text
+                    payload["prompt"] = prompt
+            except Exception as e:
+                log_error(f"Error processing images: {e}", e)
+                return "", "", str(e), 500, metadata
+        
+        # Build payload based on endpoint
+        if endpoint == "completion":
+            payload["prompt"] = prompt
+            payload["n_predict"] = n_predict
+            payload["temperature"] = temperature
+            payload["top_k"] = top_k
+            payload["top_p"] = top_p
+            payload["min_p"] = min_p
+            payload["seed"] = seed
+            payload["repeat_penalty"] = repeat_penalty
+            payload["repeat_last_n"] = repeat_last_n
+            payload["presence_penalty"] = presence_penalty
+            payload["frequency_penalty"] = frequency_penalty
+            payload["stop"] = json.loads(stop_sequences) if stop_sequences else []
+            payload["stream"] = stream
+            payload["cache_prompt"] = cache_prompt
+            payload["id_slot"] = id_slot
+            payload["samplers"] = json.loads(samplers) if samplers else []
+            payload["t_max_predict_ms"] = t_max_predict_ms
+            payload["grammar"] = grammar
+            payload["logit_bias"] = json.loads(logit_bias) if logit_bias else []
+            payload["n_probs"] = n_probs
+            payload["min_keep"] = min_keep
+            payload["post_sampling_probs"] = post_sampling_probs
+            payload["return_tokens"] = return_tokens
+            payload["timings_per_token"] = timings_per_token
+            payload["ignore_eos"] = ignore_eos
+            payload["n_keep"] = n_keep
+            payload["dynatemp_range"] = dynatemp_range
+            payload["dynatemp_exponent"] = dynatemp_exponent
+            payload["xtc_probability"] = xtc_probability
+            payload["xtc_threshold"] = xtc_threshold
+            payload["mirostat"] = mirostat
+            payload["mirostat_tau"] = mirostat_tau
+            payload["mirostat_eta"] = mirostat_eta
+            payload["typical_p"] = typical_p
+            payload["dry_multiplier"] = dry_multiplier
+            payload["dry_base"] = dry_base
+            payload["dry_allowed_length"] = dry_allowed_length
+            payload["dry_penalty_last_n"] = dry_penalty_last_n
+            payload["dry_sequence_breakers"] = json.loads(dry_sequence_breakers) if dry_sequence_breakers else []
+            payload["lora"] = json.loads(lora) if lora else []
+            
+        elif endpoint == "chat_completions":
+            # Use vision content if images were provided
+            if images is not None and "messages" in payload:
+                pass  # Messages already set from vision content
             else:
-                return "", "", f"Unsupported endpoint: {endpoint}", 400
-
-            return response, raw_response, error, status_code
-
+                payload["messages"] = json.loads(messages) if messages else []
+                if assistant_message:
+                    payload["messages"].append({"role": "assistant", "content": assistant_message})
+            payload["max_tokens"] = max_tokens
+            payload["model"] = model
+            payload["temperature"] = temperature
+            payload["top_k"] = top_k
+            payload["top_p"] = top_p
+            payload["min_p"] = min_p
+            payload["seed"] = seed
+            payload["stop"] = json.loads(stop_sequences) if stop_sequences else []
+            payload["stream"] = stream
+            payload["tools"] = json.loads(tools) if tools else []
+            payload["tool_choice"] = tool_choice
+            payload["response_format"] = json.loads(response_format) if response_format else None
+            payload["grammar"] = grammar
+            payload["logit_bias"] = json.loads(logit_bias) if logit_bias else []
+            payload["n_probs"] = n_probs
+            payload["min_keep"] = min_keep
+            payload["post_sampling_probs"] = post_sampling_probs
+            payload["return_tokens"] = return_tokens
+            payload["timings_per_token"] = timings_per_token
+            payload["ignore_eos"] = ignore_eos
+            payload["dynatemp_range"] = dynatemp_range
+            payload["dynatemp_exponent"] = dynatemp_exponent
+            payload["xtc_probability"] = xtc_probability
+            payload["xtc_threshold"] = xtc_threshold
+            payload["repeat_penalty"] = repeat_penalty
+            payload["repeat_last_n"] = repeat_last_n
+            payload["presence_penalty"] = presence_penalty
+            payload["frequency_penalty"] = frequency_penalty
+            payload["mirostat"] = mirostat
+            payload["mirostat_tau"] = mirostat_tau
+            payload["mirostat_eta"] = mirostat_eta
+            payload["typical_p"] = typical_p
+            payload["lora"] = json.loads(lora) if lora else []
+            
+        elif endpoint == "embeddings":
+            payload["input_text"] = input_text
+            payload["encoding_format"] = encoding_format
+            payload["embd_normalize"] = embd_normalize
+            
+        elif endpoint == "tokenize":
+            payload["content"] = content
+            payload["add_special"] = add_special
+            payload["parse_special"] = parse_special
+            payload["with_pieces"] = with_pieces
+            
+        elif endpoint == "detokenize":
+            payload["tokens"] = json.loads(tokens) if tokens else []
+            
+        elif endpoint == "apply_template":
+            payload["content"] = content
+            payload["add_special"] = add_special
+            
+        elif endpoint == "infill":
+            payload["input_prefix"] = input_prefix
+            payload["input_suffix"] = input_suffix
+            payload["input_extra"] = json.loads(input_extra) if input_extra else []
+            payload["n_predict"] = n_predict
+            payload["temperature"] = temperature
+            payload["top_k"] = top_k
+            payload["top_p"] = top_p
+            payload["min_p"] = min_p
+            payload["seed"] = seed
+            payload["repeat_penalty"] = repeat_penalty
+            payload["repeat_last_n"] = repeat_last_n
+            payload["presence_penalty"] = presence_penalty
+            payload["frequency_penalty"] = frequency_penalty
+            payload["stop"] = json.loads(stop_sequences) if stop_sequences else []
+            payload["stream"] = stream
+            payload["cache_prompt"] = cache_prompt
+            payload["id_slot"] = id_slot
+            payload["samplers"] = json.loads(samplers) if samplers else []
+            payload["t_max_predict_ms"] = t_max_predict_ms
+            payload["grammar"] = grammar
+            payload["logit_bias"] = json.loads(logit_bias) if logit_bias else []
+            payload["n_probs"] = n_probs
+            payload["min_keep"] = min_keep
+            payload["post_sampling_probs"] = post_sampling_probs
+            payload["return_tokens"] = return_tokens
+            payload["timings_per_token"] = timings_per_token
+            payload["ignore_eos"] = ignore_eos
+            payload["n_keep"] = n_keep
+            payload["dynatemp_range"] = dynatemp_range
+            payload["dynatemp_exponent"] = dynatemp_exponent
+            payload["xtc_probability"] = xtc_probability
+            payload["xtc_threshold"] = xtc_threshold
+            payload["mirostat"] = mirostat
+            payload["mirostat_tau"] = mirostat_tau
+            payload["mirostat_eta"] = mirostat_eta
+            payload["typical_p"] = typical_p
+            payload["lora"] = json.loads(lora) if lora else []
+            
+        elif endpoint == "reranking":
+            payload["query"] = query
+            payload["documents"] = json.loads(documents) if documents else []
+            payload["top_n"] = top_n
+            
+        # Execute the request
+        try:
+            response = client.execute(endpoint, payload)
+            status_code = 200
+            raw_response = json.dumps(response) if isinstance(response, dict) else str(response)
+            
+            # Parse response
+            if isinstance(response, dict):
+                response_text = response.get("content", response.get("text", ""))
+            else:
+                response_text = str(response)
+                
         except Exception as e:
-            return "", "", f"Error processing request: {str(e)}", 500
+            response_text = ""
+            raw_response = ""
+            status_code = 500
+            return "", "", str(e), status_code, metadata
+        
+        return response_text, raw_response, "", status_code, metadata
 
 
-# Node mappings for ComfyUI
-NODE_CLASS_MAPPINGS = {"LlamaCppClient": LlamaCppClientNode}
-
-NODE_DISPLAY_NAME_MAPPINGS = {"LlamaCppClient": "Llama.cpp Server Client"}
+# Note: extract_image_metadata_from_tensor is deprecated.
+# Use extract_tensor_metadata from utils.image_utils instead.

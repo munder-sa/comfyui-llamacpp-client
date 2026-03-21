@@ -61,3 +61,25 @@ input/
 # Local configuration
 config.local.json
 .env.local
+.clinerules
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Test and Coverage
+.mypy_cache/
+.pytest_cache/
+.tox/
+.coverage
+*.cover
+htmlcov/
+nosetests.xml
+coverage.xml
+*,cover

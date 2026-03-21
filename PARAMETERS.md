@@ -1,6 +1,34 @@
 # Complete Parameter Reference
 
-This document provides a comprehensive reference for all parameters supported by the LlamaCpp Client Node.
+A comprehensive reference for all parameters supported by the LlamaCpp Client Node.
+
+## Table of Contents
+
+- [Connection Parameters](#connection-parameters)
+- [Core Generation Parameters](#core-generation-parameters)
+- [Sampling Parameters](#sampling-parameters)
+- [Dynamic Temperature](#dynamic-temperature)
+- [XTC Sampling](#xtc-sampling)
+- [Repetition Control](#repetition-control)
+- [DRY Sampling](#dry-sampling)
+- [Mirostat Sampling](#mirostat-sampling)
+- [Control Parameters](#control-parameters)
+- [Streaming and Output](#streaming-and-output)
+- [Grammar and Constraints](#grammar-and-constraints)
+- [Cache and Performance](#cache-and-performance)
+- [Sampler Configuration](#sampler-configuration)
+- [Chat-Specific Parameters](#chat-specific-parameters)
+- [Function Calling](#function-calling)
+- [Embeddings Parameters](#embeddings-parameters)
+- [Tokenization Parameters](#tokenization-parameters)
+- [Infill Parameters](#infill-parameters)
+- [Reranking Parameters](#reranking-parameters)
+- [LoRA Adapters](#lora-adapters)
+- [Multimodal Parameters](#multimodal-parameters)
+- [Common Parameter Combinations](#common-parameter-combinations)
+- [Troubleshooting](#troubleshooting)
+
+---
 
 ## Connection Parameters
 
@@ -19,6 +47,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Range**: 1-3600
 - **Description**: Request timeout in seconds
 - **Usage**: Increase for long generations
+
+---
 
 ## Core Generation Parameters
 
@@ -46,6 +76,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Range**: -1 to 2^31-1
 - **Description**: Random seed for reproducible generation
 - **Special**: -1 = random seed
+
+---
 
 ## Sampling Parameters
 
@@ -76,6 +108,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Description**: Locally typical sampling parameter
 - **Usage**: 1.0 = disabled
 
+---
+
 ## Dynamic Temperature
 
 ### dynatemp_range (FLOAT, optional)
@@ -90,6 +124,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Range**: 0.1-10.0
 - **Step**: 0.01
 - **Description**: Controls dynamic temperature curve shape
+
+---
 
 ## XTC (Cross-Token Coherence) Sampling
 
@@ -106,6 +142,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Step**: 0.01
 - **Description**: Minimum probability threshold for XTC
 - **Usage**: >0.5 effectively disables XTC
+
+---
 
 ## Repetition Control
 
@@ -135,6 +173,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Step**: 0.01
 - **Description**: OpenAI-style frequency penalty
 - **Usage**: Positive = discourage frequent tokens
+
+---
 
 ## DRY (Don't Repeat Yourself) Sampling
 
@@ -168,6 +208,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Description**: Sequences that break repetition detection
 - **Example**: `'["\\n", ".", "!", "?"]'`
 
+---
+
 ## Mirostat Sampling
 
 ### mirostat (INT, optional)
@@ -188,6 +230,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Step**: 0.001
 - **Description**: Mirostat learning rate (eta parameter)
 
+---
+
 ## Control Parameters
 
 ### n_keep (INT, optional)
@@ -205,6 +249,8 @@ This document provides a comprehensive reference for all parameters supported by
 ### ignore_eos (BOOLEAN, optional)
 - **Default**: `false`
 - **Description**: Continue generation after end-of-stream token
+
+---
 
 ## Streaming and Output
 
@@ -234,6 +280,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Default**: `false`
 - **Description**: Include detailed timing information
 
+---
+
 ## Grammar and Constraints
 
 ### grammar (STRING, optional)
@@ -249,6 +297,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Multiline**: Yes
 - **Example**: `'{"type": "object", "properties": {"name": {"type": "string"}}}'`
 
+---
+
 ## Logit Bias
 
 ### logit_bias (STRING, optional)
@@ -257,6 +307,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Description**: Modify token probabilities
 - **Example**: `'[[15043, 1.0], ["Hello", -0.5]]'`
 - **Usage**: Positive = increase probability, Negative = decrease
+
+---
 
 ## Cache and Performance
 
@@ -276,6 +328,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Description**: Maximum generation time in milliseconds
 - **Special**: 0 = unlimited
 
+---
+
 ## Sampler Configuration
 
 ### samplers (STRING, optional)
@@ -283,6 +337,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Format**: JSON array of strings
 - **Description**: Order of sampler application
 - **Available**: dry, top_k, typ_p, top_p, min_p, xtc, temperature
+
+---
 
 ## Chat-Specific Parameters
 
@@ -316,6 +372,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Default**: `""`
 - **Description**: Model name or alias
 
+---
+
 ## Function Calling
 
 ### tools (STRING, optional)
@@ -335,6 +393,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Description**: Specify response format constraints
 - **Multiline**: Yes
 
+---
+
 ## Embeddings Parameters
 
 ### input_text (STRING, optional)
@@ -352,6 +412,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Range**: -1 to 10
 - **Description**: Embedding normalization method
 - **Values**: -1=none, 0=max_abs, 1=taxicab, 2=euclidean, >2=p-norm
+
+---
 
 ## Tokenization Parameters
 
@@ -377,6 +439,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Default**: `false`
 - **Description**: Return token text pieces with IDs
 
+---
+
 ## Infill Parameters
 
 ### input_prefix (STRING, optional)
@@ -394,6 +458,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Format**: JSON array of file objects
 - **Description**: Additional context files
 - **Example**: `'[{"filename": "utils.py", "text": "def helper(): pass"}]'`
+
+---
 
 ## Reranking Parameters
 
@@ -413,6 +479,8 @@ This document provides a comprehensive reference for all parameters supported by
 - **Range**: 1-1000
 - **Description**: Number of top results to return
 
+---
+
 ## LoRA Adapters
 
 ### lora (STRING, optional)
@@ -422,13 +490,9 @@ This document provides a comprehensive reference for all parameters supported by
 - **Example**: `'[{"id": 0, "scale": 0.8}, {"id": 1, "scale": 0.5}]'`
 - **Multiline**: Yes
 
-## Advanced Options
+---
 
-### response_fields (STRING, optional)
-- **Default**: `"[]"`
-- **Format**: JSON array of strings
-- **Description**: Specific response fields to return
-- **Example**: `'["content", "generation_settings/n_predict"]'`
+## Multimodal Parameters
 
 ### image_data (STRING, optional)
 - **Default**: `"[]"`
@@ -437,14 +501,7 @@ This document provides a comprehensive reference for all parameters supported by
 - **Example**: `'[{"data": "base64string", "id": 1}]'`
 - **Multiline**: Yes
 
-## Parameter Usage Tips
-
-1. **Start Simple**: Begin with basic parameters (prompt, temperature, n_predict)
-2. **Gradual Complexity**: Add advanced sampling parameters incrementally
-3. **Model-Specific**: Some parameters may not work with all models
-4. **Performance**: Complex sampling configurations may slow generation
-5. **Validation**: Use test_node.py to verify parameter combinations
-6. **Documentation**: Refer to llama-server documentation for latest features
+---
 
 ## Common Parameter Combinations
 
@@ -479,3 +536,32 @@ temperature: 0.7
 json_schema: {schema_here}
 n_predict: 200
 ```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Connection Errors
+- **Issue**: "Connection refused"
+- **Solution**: Ensure llama-server is running and accessible at the specified URL
+
+#### Timeout Errors
+- **Issue**: "Request timeout"
+- **Solution**: Increase the `timeout` parameter for long generations
+
+#### Invalid JSON Response
+- **Issue**: "Invalid JSON response"
+- **Solution**: Check that llama-server is properly configured and returning valid JSON
+
+#### Feature Not Working
+- **Issue**: Specific features not functioning
+- **Solution**: Ensure llama-server was started with required flags (e.g., `--embedding`, `--reranking`)
+
+### Performance Tips
+1. Use `cache_prompt=true` for similar prompts
+2. Set appropriate `id_slot` for concurrent requests
+3. Configure `n_keep` to retain important context
+4. Use streaming for long generations
+5. Optimize server batch sizes for your hardware

@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 try:
     from logger import log_debug, log_error
@@ -69,23 +69,13 @@ COMMON_COMPLETION_PARAMS = {
     "image_data": "image_data",
 }
 
-# Chat completion specific mapping
+# Chat completion specific mapping (excluding parameters already in COMMON_COMPLETION_PARAMS)
 CHAT_COMPLETION_PARAMS = {
     "max_tokens": "max_tokens",
-    "temperature": "temperature",
-    "top_p": "top_p",
-    "top_k": "top_k",
-    "min_p": "min_p",
-    "seed": "seed",
-    "stream": "stream",
-    "stop_sequences": "stop",
-    "presence_penalty": "presence_penalty",
-    "frequency_penalty": "frequency_penalty",
     "tools": "tools",
     "tool_choice": "tool_choice",
     "response_format": "response_format",
     "n_probs": "logprobs",
-    "image_data": "image_data",
 }
 
 
@@ -147,8 +137,15 @@ def safe_convert_to_float(
 
 
 def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Remove None values and convert string parameters to appropriate types."""
-    cleaned = {}
+    """Remove None values and convert string parameters to appropriate types.
+    
+    Args:
+        params: Dictionary of parameters to clean
+        
+    Returns:
+        Dictionary with cleaned parameters
+    """
+    cleaned: Dict[str, Any] = {}
 
     for key, value in params.items():
         if value is None:
@@ -166,7 +163,7 @@ def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
                     log_debug(f"Processing parameter '{key}'. Original string length: {len(value)}")
                     value = value.replace("\n", "").replace("\r", "")
                 try:
-                    parsed_value = json.loads(value)
+                    parsed_value: Union[list, dict] = json.loads(value)
                     cleaned[key] = parsed_value
                     if key == "image_data":
                         log_debug(
@@ -175,17 +172,14 @@ def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
                 except json.JSONDecodeError as e:
                     log_error(f"Error parsing JSON for parameter '{key}': {str(e)}", e)
                     # Use empty list/dict as fallback for JSON parameters
-                    if key == "image_data":
-                        cleaned[key] = []
-                    else:
-                        cleaned[key] = []
+                    cleaned[key] = []
                     continue
             elif isinstance(value, (list, dict)):
                 if key == "image_data":
                     log_debug(f"Received '{key}' already as type {type(value)}.")
                 # Value is already a list or dict, use as is
                 cleaned[key] = value
-            elif value == "false" or value == "true":
+            elif isinstance(value, str) and value.lower() in ("true", "false"):
                 # Handle string boolean representations
                 cleaned[key] = value.lower() == "true"
         else:
@@ -195,8 +189,16 @@ def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def map_parameters(kwargs: Dict[str, Any], mapping: Dict[str, str]) -> Dict[str, Any]:
-    """Map UI kwargs to API parameters based on mapping."""
-    params = {}
+    """Map UI kwargs to API parameters based on mapping.
+    
+    Args:
+        kwargs: Dictionary of UI parameters
+        mapping: Dictionary mapping UI parameter names to API parameter names
+        
+    Returns:
+        Dictionary of mapped API parameters
+    """
+    params: Dict[str, Any] = {}
     for param_key, api_key in mapping.items():
         if param_key in kwargs and kwargs[param_key] is not None:
             params[api_key] = kwargs[param_key]

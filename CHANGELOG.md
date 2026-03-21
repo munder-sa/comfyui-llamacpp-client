@@ -1,4 +1,11 @@
 ### 2026-03-21
+- Restored and completed `process_request` method for Phase 8: Multimodal Integration.
+  - Updated `RETURN_TYPES` to: `("STRING", "STRING", "STRING", "INT", "JSON")`
+  - Updated `RETURN_NAMES` to: `("response", "raw_response", "error", "status_code", "metadata")`
+  - Re-implemented full `process_request` body with `extract_image_metadata` and `build_vision_content` functionality.
+  - Removed duplicate `extract_image_metadata_from_tensor` function; now uses `extract_tensor_metadata` from `utils/image_utils.py`.
+- Fixed `test_build_vision_content_with_tensor` test in `test_optimized_features.py`.
+  - Corrected unpacking of tuple return value from `build_vision_content` function.
 - Fixed parameter display bug during endpoint switching.
   - Completed `endpointFields` definition in `web/llamacpp_client_extension.js` with all required parameters for each endpoint.
   - `completion` endpoint: 44 parameters

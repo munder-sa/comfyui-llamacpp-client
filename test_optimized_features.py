@@ -545,7 +545,7 @@ class TestMockLlamaClientImageProcessing(unittest.TestCase):
         mock_array[:, :, :, 1] = 0.5  # G channel
         mock_array[:, :, :, 2] = 0.5  # B channel
         
-        content = self.client.build_vision_content(
+        content, metadata = self.client.build_vision_content(
             user_text="Test prompt",
             image_data=[],
             tensor_images=mock_array
