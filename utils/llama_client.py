@@ -1,6 +1,6 @@
 import json
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, Tuple, Optional
 
 from .param_utils import clean_params, map_parameters, COMMON_COMPLETION_PARAMS, CHAT_COMPLETION_PARAMS
 from .image_utils import build_vision_content, process_image_data_string
@@ -14,7 +14,7 @@ class LlamaCppAPIClient:
         self.api_key = api_key
         self.timeout = timeout
         
-    def _make_request(self, endpoint_path: str, data: Dict[str, Any]):
+    def _make_request(self, endpoint_path: str, data: Dict[str, Any]) -> Tuple[str, str, str, int]:
         """Make HTTP POST request to llama-server."""
         url = f"{self.base_url}{endpoint_path}"
         headers = {"Content-Type": "application/json"}
@@ -54,7 +54,7 @@ class LlamaCppAPIClient:
             log_error(f"Request exception", e)
             return "", "", f"Request error: {str(e)}", 500
 
-    def handle_completion(self, prompt: str, **kwargs):
+    def handle_completion(self, prompt: str, **kwargs) -> Tuple[str, str, str, int]:
         """Handle /completion endpoint."""
         params = {"prompt": prompt}
         mapped_params = map_parameters(kwargs, COMMON_COMPLETION_PARAMS)
@@ -62,7 +62,7 @@ class LlamaCppAPIClient:
         params = clean_params(params)
         return self._make_request("/completion", params)
 
-    def handle_chat_completions(self, **kwargs):
+    def handle_chat_completions(self, **kwargs) -> Tuple[str, str, str, int]:
         """Handle /v1/chat/completions endpoint."""
         messages = []
         
@@ -108,7 +108,7 @@ class LlamaCppAPIClient:
         params = clean_params(params)
         return self._make_request("/v1/chat/completions", params)
 
-    def handle_embeddings(self, **kwargs):
+    def handle_embeddings(self, **kwargs) -> Tuple[str, str, str, int]:
         """Handle /v1/embeddings endpoint."""
         input_text = kwargs.get("input_text") or kwargs.get("content") or kwargs.get("prompt", "")
         params = {
@@ -119,7 +119,7 @@ class LlamaCppAPIClient:
         params = clean_params(params)
         return self._make_request("/v1/embeddings", params)
 
-    def handle_tokenize(self, **kwargs):
+    def handle_tokenize(self, **kwargs) -> Tuple[str, str, str, int]:
         """Handle /tokenize endpoint."""
         content = kwargs.get("content") or kwargs.get("prompt", "")
         params = {
@@ -130,7 +130,7 @@ class LlamaCppAPIClient:
         }
         return self._make_request("/tokenize", params)
 
-    def handle_detokenize(self, **kwargs):
+    def handle_detokenize(self, **kwargs) -> Tuple[str, str, str, int]:
         """Handle /detokenize endpoint."""
         tokens = kwargs.get("tokens", "[]")
         if isinstance(tokens, str):
@@ -141,7 +141,7 @@ class LlamaCppAPIClient:
         params = {"tokens": tokens}
         return self._make_request("/detokenize", params)
 
-    def handle_apply_template(self, **kwargs):
+    def handle_apply_template(self, **kwargs) -> Tuple[str, str, str, int]:
         """Handle /apply-template endpoint."""
         messages = kwargs.get("messages", "[]")
         if isinstance(messages, str):
@@ -152,7 +152,7 @@ class LlamaCppAPIClient:
         params = {"messages": messages}
         return self._make_request("/apply-template", params)
 
-    def handle_infill(self, **kwargs):
+    def handle_infill(self, **kwargs) -> Tuple[str, str, str, int]:
         """Handle /infill endpoint."""
         params = {
             "input_prefix": kwargs.get("input_prefix", ""),
@@ -181,7 +181,7 @@ class LlamaCppAPIClient:
         params = clean_params(params)
         return self._make_request("/infill", params)
 
-    def handle_reranking(self, **kwargs):
+    def handle_reranking(self, **kwargs) -> Tuple[str, str, str, int]:
         """Handle /v1/rerank endpoint."""
         query = kwargs.get("query", "")
         documents = kwargs.get("documents", "[]")

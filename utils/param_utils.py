@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from .logger import log_debug, log_error
 
 # Parameters that need to be parsed as JSON
@@ -74,7 +74,7 @@ CHAT_COMPLETION_PARAMS = {
     "image_data": "image_data"
 }
 
-def safe_convert_to_int(value: Any, default: int = 0, min_val: int = None, max_val: int = None) -> int:
+def safe_convert_to_int(value: Any, default: int = 0, min_val: Optional[int] = None, max_val: Optional[int] = None) -> int:
     """Safely convert value to int, returning default if conversion fails."""
     if value is None or value == "" or value == "[]":
         return default
@@ -98,7 +98,7 @@ def safe_convert_to_int(value: Any, default: int = 0, min_val: int = None, max_v
         log_debug(f"Failed to convert {repr(value)} to int, using default {default}")
         return default
 
-def safe_convert_to_float(value: Any, default: float = 0.0, min_val: float = None, max_val: float = None) -> float:
+def safe_convert_to_float(value: Any, default: float = 0.0, min_val: Optional[float] = None, max_val: Optional[float] = None) -> float:
     """Safely convert value to float, returning default if conversion fails."""
     if value is None or value == "" or value == "[]" or value == "randomize":
         return default
