@@ -122,6 +122,60 @@ function updateUI(node) {
     }
 }
 
+function initializeWidgetValues(node) {
+    if (!node.widgets) return;
+
+    // Create a map of widget names and their default values from the node definition
+    const widgetDefaults = {
+        "temperature": 0.8,
+        "top_k": 40,
+        "top_p": 0.95,
+        "min_p": 0.05,
+        "seed": -1,
+        "max_tokens": -1,
+        "n_predict": -1,
+        "repeat_penalty": 1.1,
+        "timeout": 600,
+        "dry_base": 1.75,
+        "dry_allowed_length": 2,
+        "mirostat_eta": 0.1,
+        "xtc_probability": 0.0,
+        "xtc_threshold": 0.1,
+        "n_keep": 0,
+        "dynatemp_range": 0.0,
+        "dynatemp_exponent": 1.0,
+        "typical_p": 1.0,
+        "dry_multiplier": 0.0,
+        "dry_penalty_last_n": -1,
+        "mirostat": 0,
+        "mirostat_tau": 5.0,
+        "cache_prompt": true,
+        "id_slot": -1,
+        "t_max_predict_ms": 0
+    };
+
+    for (let i = 0; i < node.widgets.length; i++) {
+        const w = node.widgets[i];
+        // Initialize widgets with properly typed values
+        if (w.name in widgetDefaults) {
+            const defaultVal = widgetDefaults[w.name];
+            if (w.value === null || w.value === undefined || w.value === "" || w.value === "[]") {
+                w.value = defaultVal;
+                console.log(`[LlamaCppClient] Initialized widget ${w.name} to default value: ${defaultVal}`);
+            }
+        }
+        // Ensure JSON parameters are strings
+        if (["stop_sequences", "logit_bias", "samplers", "messages", "tools", "response_format", 
+             "input_extra", "documents", "lora", "response_fields", "image_data", "dry_sequence_breakers", "tokens"].includes(w.name)) {
+            if (!w.value || w.value === "[]") {
+                w.value = "[]";
+            } else if (typeof w.value !== "string") {
+                w.value = JSON.stringify(w.value);
+            }
+        }
+    }
+}
+
 function setupNode(node) {
     if (!node.widgets) return;
 
@@ -129,6 +183,9 @@ function setupNode(node) {
     if (!node.masterWidgets) {
         node.masterWidgets = Array.from(node.widgets);
     }
+
+    // Initialize widget values to safe defaults
+    initializeWidgetValues(node);
 
     let endpointWidget = null;
     for (let i = 0; i < node.masterWidgets.length; i++) {

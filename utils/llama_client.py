@@ -22,7 +22,15 @@ class LlamaCppAPIClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
             
         log_info(f"Sending request to {url}")
-        log_debug(f"Request Payload (before sending):", data)
+        # Log parameter values for debugging
+        log_debug(f"Request Payload (before sending): | Data: {json.dumps(data, indent=2)[:500]}")
+        for key, value in data.items():
+            if isinstance(value, (list, dict)):
+                log_debug(f"  {key}: {type(value).__name__} with {len(value)} items")
+            elif isinstance(value, str):
+                log_debug(f"  {key}: str (length: {len(value)})")
+            else:
+                log_debug(f"  {key}: {type(value).__name__} = {value}")
             
         try:
             response = requests.post(url, json=data, headers=headers, timeout=self.timeout)

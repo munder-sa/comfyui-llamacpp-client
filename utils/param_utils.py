@@ -74,12 +74,64 @@ CHAT_COMPLETION_PARAMS = {
     "image_data": "image_data"
 }
 
+def safe_convert_to_int(value: Any, default: int = 0, min_val: int = None, max_val: int = None) -> int:
+    """Safely convert value to int, returning default if conversion fails."""
+    if value is None or value == "" or value == "[]":
+        return default
+    try:
+        if isinstance(value, str):
+            # Try to parse as JSON first if it looks like JSON
+            if value.strip().startswith('[') or value.strip().startswith('{'):
+                return default
+            value = value.strip()
+            if not value:
+                return default
+        result = int(float(value))  # Convert through float to handle "1.0" strings
+        if min_val is not None and result < min_val:
+            log_debug(f"Int value {result} below minimum {min_val}, using default {default}")
+            return default
+        if max_val is not None and result > max_val:
+            log_debug(f"Int value {result} above maximum {max_val}, using default {default}")
+            return default
+        return result
+    except (ValueError, TypeError, AttributeError):
+        log_debug(f"Failed to convert {repr(value)} to int, using default {default}")
+        return default
+
+def safe_convert_to_float(value: Any, default: float = 0.0, min_val: float = None, max_val: float = None) -> float:
+    """Safely convert value to float, returning default if conversion fails."""
+    if value is None or value == "" or value == "[]" or value == "randomize":
+        return default
+    try:
+        if isinstance(value, str):
+            # Try to parse as JSON first if it looks like JSON
+            if value.strip().startswith('[') or value.strip().startswith('{'):
+                return default
+            value = value.strip()
+            if not value:
+                return default
+        result = float(value)
+        if min_val is not None and result < min_val:
+            log_debug(f"Float value {result} below minimum {min_val}, using default {default}")
+            return default
+        if max_val is not None and result > max_val:
+            log_debug(f"Float value {result} above maximum {max_val}, using default {default}")
+            return default
+        return result
+    except (ValueError, TypeError, AttributeError):
+        log_debug(f"Failed to convert {repr(value)} to float, using default {default}")
+        return default
+
 def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
     """Remove None values and convert string parameters to appropriate types."""
     cleaned = {}
     
     for key, value in params.items():
         if value is None:
+            continue
+        
+        # Skip empty strings and invalid list representations
+        if isinstance(value, str) and not value.strip():
             continue
             
         # Handle string parameters that should be parsed as JSON
@@ -95,13 +147,21 @@ def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
                     if key == 'image_data':
                         log_debug(f"Successfully parsed '{key}' as JSON. Result type: {type(parsed_value)}")
                 except json.JSONDecodeError as e:
-                    log_error(f"Error parsing JSON for parameter '{key}'", e)
+                    log_error(f"Error parsing JSON for parameter '{key}': {str(e)}", e)
+                    # Use empty list/dict as fallback for JSON parameters
+                    if key == 'image_data':
+                        cleaned[key] = []
+                    else:
+                        cleaned[key] = []
                     continue
             elif isinstance(value, (list, dict)):
                 if key == 'image_data':
                     log_debug(f"Received '{key}' already as type {type(value)}.")
                 # Value is already a list or dict, use as is
                 cleaned[key] = value
+            elif value == "false" or value == "true":
+                # Handle string boolean representations
+                cleaned[key] = value.lower() == "true"
         else:
             cleaned[key] = value
             
