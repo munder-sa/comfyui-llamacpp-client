@@ -1,18 +1,32 @@
 import json
-from typing import Dict, Any, Optional
-from .logger import log_debug, log_error
+from typing import Any, Dict, Optional
+
+try:
+    from logger import log_debug, log_error
+except ImportError:
+    from .logger import log_debug, log_error
 
 # Parameters that need to be parsed as JSON
 JSON_PARAMETERS = [
-    'stop_sequences', 'logit_bias', 'samplers', 'messages', 'tools', 
-    'response_format', 'input_extra', 'documents', 'lora', 'response_fields',
-    'image_data', 'dry_sequence_breakers', 'tokens'
+    "stop_sequences",
+    "logit_bias",
+    "samplers",
+    "messages",
+    "tools",
+    "response_format",
+    "input_extra",
+    "documents",
+    "lora",
+    "response_fields",
+    "image_data",
+    "dry_sequence_breakers",
+    "tokens",
 ]
 
 # Common completion and sampling parameters mapping
 COMMON_COMPLETION_PARAMS = {
     "n_predict": "n_predict",
-    "temperature": "temperature", 
+    "temperature": "temperature",
     "top_k": "top_k",
     "top_p": "top_p",
     "min_p": "min_p",
@@ -52,7 +66,7 @@ COMMON_COMPLETION_PARAMS = {
     "t_max_predict_ms": "t_max_predict_ms",
     "lora": "lora",
     "response_fields": "response_fields",
-    "image_data": "image_data"
+    "image_data": "image_data",
 }
 
 # Chat completion specific mapping
@@ -71,17 +85,20 @@ CHAT_COMPLETION_PARAMS = {
     "tool_choice": "tool_choice",
     "response_format": "response_format",
     "n_probs": "logprobs",
-    "image_data": "image_data"
+    "image_data": "image_data",
 }
 
-def safe_convert_to_int(value: Any, default: int = 0, min_val: Optional[int] = None, max_val: Optional[int] = None) -> int:
+
+def safe_convert_to_int(
+    value: Any, default: int = 0, min_val: Optional[int] = None, max_val: Optional[int] = None
+) -> int:
     """Safely convert value to int, returning default if conversion fails."""
     if value is None or value == "" or value == "[]":
         return default
     try:
         if isinstance(value, str):
             # Try to parse as JSON first if it looks like JSON
-            if value.strip().startswith('[') or value.strip().startswith('{'):
+            if value.strip().startswith("[") or value.strip().startswith("{"):
                 return default
             value = value.strip()
             if not value:
@@ -98,14 +115,20 @@ def safe_convert_to_int(value: Any, default: int = 0, min_val: Optional[int] = N
         log_debug(f"Failed to convert {repr(value)} to int, using default {default}")
         return default
 
-def safe_convert_to_float(value: Any, default: float = 0.0, min_val: Optional[float] = None, max_val: Optional[float] = None) -> float:
+
+def safe_convert_to_float(
+    value: Any,
+    default: float = 0.0,
+    min_val: Optional[float] = None,
+    max_val: Optional[float] = None,
+) -> float:
     """Safely convert value to float, returning default if conversion fails."""
     if value is None or value == "" or value == "[]" or value == "randomize":
         return default
     try:
         if isinstance(value, str):
             # Try to parse as JSON first if it looks like JSON
-            if value.strip().startswith('[') or value.strip().startswith('{'):
+            if value.strip().startswith("[") or value.strip().startswith("{"):
                 return default
             value = value.strip()
             if not value:
@@ -122,40 +145,43 @@ def safe_convert_to_float(value: Any, default: float = 0.0, min_val: Optional[fl
         log_debug(f"Failed to convert {repr(value)} to float, using default {default}")
         return default
 
+
 def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
     """Remove None values and convert string parameters to appropriate types."""
     cleaned = {}
-    
+
     for key, value in params.items():
         if value is None:
             continue
-        
+
         # Skip empty strings and invalid list representations
         if isinstance(value, str) and not value.strip():
             continue
-            
+
         # Handle string parameters that should be parsed as JSON
         if key in JSON_PARAMETERS:
             if isinstance(value, str) and value.strip():
                 # For image_data, strip out newlines to ensure proper JSON parsing
-                if key == 'image_data':
+                if key == "image_data":
                     log_debug(f"Processing parameter '{key}'. Original string length: {len(value)}")
-                    value = value.replace('\n', '').replace('\r', '')
+                    value = value.replace("\n", "").replace("\r", "")
                 try:
                     parsed_value = json.loads(value)
                     cleaned[key] = parsed_value
-                    if key == 'image_data':
-                        log_debug(f"Successfully parsed '{key}' as JSON. Result type: {type(parsed_value)}")
+                    if key == "image_data":
+                        log_debug(
+                            f"Successfully parsed '{key}' as JSON. Result type: {type(parsed_value)}"
+                        )
                 except json.JSONDecodeError as e:
                     log_error(f"Error parsing JSON for parameter '{key}': {str(e)}", e)
                     # Use empty list/dict as fallback for JSON parameters
-                    if key == 'image_data':
+                    if key == "image_data":
                         cleaned[key] = []
                     else:
                         cleaned[key] = []
                     continue
             elif isinstance(value, (list, dict)):
-                if key == 'image_data':
+                if key == "image_data":
                     log_debug(f"Received '{key}' already as type {type(value)}.")
                 # Value is already a list or dict, use as is
                 cleaned[key] = value
@@ -164,8 +190,9 @@ def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
                 cleaned[key] = value.lower() == "true"
         else:
             cleaned[key] = value
-            
+
     return cleaned
+
 
 def map_parameters(kwargs: Dict[str, Any], mapping: Dict[str, str]) -> Dict[str, Any]:
     """Map UI kwargs to API parameters based on mapping."""

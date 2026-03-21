@@ -4,10 +4,12 @@ import json
 DEBUG_MODE = True
 PREFIX = "[LlamaCppClientNode]"
 
+
 def set_debug_mode(mode: bool):
     """Dynamically update the debug mode flag."""
     global DEBUG_MODE
     DEBUG_MODE = mode
+
 
 def log_debug(message: str, data=None):
     """Log a debug message if DEBUG_MODE is enabled.
@@ -15,12 +17,13 @@ def log_debug(message: str, data=None):
     """
     if not DEBUG_MODE:
         return
-        
+
     if data is not None:
         formatted_data = _safe_format_data(data)
         print(f"{PREFIX} {message} | Data: {formatted_data}")
     else:
         print(f"{PREFIX} {message}")
+
 
 def log_error(message: str, exception: Exception = None):
     """Always log errors regardless of DEBUG_MODE."""
@@ -29,10 +32,12 @@ def log_error(message: str, exception: Exception = None):
     else:
         print(f"{PREFIX} ERROR: {message}")
 
+
 def log_info(message: str):
     """Log general info messages. Can be toggled on/off with DEBUG_MODE or kept permanent."""
     if DEBUG_MODE:
         print(f"{PREFIX} INFO: {message}")
+
 
 def _safe_format_data(data, max_str_len=100) -> str:
     """Helper to safely format large dictionaries/lists so base64 strings don't flood the terminal."""
@@ -50,7 +55,7 @@ def _safe_format_data(data, max_str_len=100) -> str:
             return json.dumps(safe_dict, indent=2)
         except:
             return str(safe_dict)
-            
+
     elif isinstance(data, list):
         safe_list = []
         for v in data:
@@ -64,8 +69,8 @@ def _safe_format_data(data, max_str_len=100) -> str:
             return json.dumps(safe_list, indent=2)
         except:
             return str(safe_list)
-            
+
     elif isinstance(data, str) and len(data) > max_str_len:
         return f"{data[:max_str_len]}... [truncated {len(data)} chars]"
-        
+
     return str(data)

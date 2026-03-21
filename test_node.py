@@ -4,22 +4,30 @@ Test script for the LlamaCpp Client Node
 Run this to verify the node works correctly before using in ComfyUI
 """
 
-import sys
 import json
+import sys
+
+import sys
+import os
+
+# Add the parent directory to the path so we can import the module
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from llamacpp_client_node import LlamaCppClientNode
+
 
 def test_node():
     """Test the LlamaCpp Client Node with various endpoints."""
-    
+
     print("Testing LlamaCpp Client Node...")
     print("=" * 50)
-    
+
     # Initialize the node
     node = LlamaCppClientNode()
-    
+
     # Test server URL (modify as needed)
     server_url = "http://127.0.0.1:8080"
-    
+
     # Test 1: Basic completion
     print("\n1. Testing basic completion...")
     try:
@@ -28,9 +36,9 @@ def test_node():
             endpoint="completion",
             prompt="Hello, how are you?",
             temperature=0.7,
-            n_predict=20
+            n_predict=20,
         )
-        
+
         if error or status_code >= 400:
             print(f"❌ Error: {error or 'HTTP Error'} (Status: {status_code})")
             if raw_response:
@@ -41,10 +49,10 @@ def test_node():
                 print(f"Response preview: {str(response)[:100]}...")
             else:
                 print(f"Response preview: {response[:100]}...")
-            
+
     except Exception as e:
         print(f"❌ Exception: {str(e)}")
-    
+
     # Test 2: Chat completions
     print("\n2. Testing chat completions...")
     try:
@@ -55,9 +63,9 @@ def test_node():
             system_message="You are a helpful assistant.",
             user_message="What is 2+2?",
             temperature=0.3,
-            max_tokens=50
+            max_tokens=50,
         )
-        
+
         if error or status_code >= 400:
             print(f"❌ Error: {error or 'HTTP Error'} (Status: {status_code})")
             if raw_response:
@@ -66,8 +74,8 @@ def test_node():
             print(f"✅ Success! Status: {status_code}")
             try:
                 parsed = json.loads(raw_response)
-                if 'choices' in parsed and len(parsed['choices']) > 0:
-                    content = parsed['choices'][0].get('message', {}).get('content', 'No content')
+                if "choices" in parsed and len(parsed["choices"]) > 0:
+                    content = parsed["choices"][0].get("message", {}).get("content", "No content")
                     print(f"Chat response: {content}")
                 else:
                     print(f"No choices in response: {parsed}")
@@ -76,10 +84,10 @@ def test_node():
                     print(f"Response preview: {str(response)[:100]}...")
                 else:
                     print(f"Response preview: {response[:100]}...")
-                
+
     except Exception as e:
         print(f"❌ Exception: {str(e)}")
-    
+
     # Test 3: Tokenization
     print("\n3. Testing tokenization...")
     try:
@@ -88,9 +96,9 @@ def test_node():
             endpoint="tokenize",
             prompt="",  # Empty prompt as we use content parameter
             content="Hello world!",
-            with_pieces=True
+            with_pieces=True,
         )
-        
+
         if error or status_code >= 400:
             print(f"❌ Error: {error or 'HTTP Error'} (Status: {status_code})")
             if raw_response:
@@ -99,17 +107,17 @@ def test_node():
             print(f"✅ Success! Status: {status_code}")
             try:
                 parsed = json.loads(raw_response)
-                if 'tokens' in parsed:
+                if "tokens" in parsed:
                     print(f"Tokens: {parsed['tokens'][:5]}...")  # First 5 tokens
             except:
                 if isinstance(response, dict):
                     print(f"Response preview: {str(response)[:100]}...")
                 else:
                     print(f"Response preview: {response[:100]}...")
-                
+
     except Exception as e:
         print(f"❌ Exception: {str(e)}")
-    
+
     # Test 4: Advanced sampling
     print("\n4. Testing advanced sampling parameters...")
     try:
@@ -125,9 +133,9 @@ def test_node():
             dry_multiplier=0.8,
             mirostat=0,
             repeat_penalty=1.1,
-            n_predict=30
+            n_predict=30,
         )
-        
+
         if error or status_code >= 400:
             print(f"❌ Error: {error or 'HTTP Error'} (Status: {status_code})")
             if raw_response:
@@ -138,10 +146,10 @@ def test_node():
                 print(f"Creative response: {str(response)[:100]}...")
             else:
                 print(f"Creative response: {response[:100]}...")
-                
+
     except Exception as e:
         print(f"❌ Exception: {str(e)}")
-    
+
     print("\n" + "=" * 50)
     print("Testing completed!")
     print("\nNote: Some tests may fail if:")
@@ -149,6 +157,7 @@ def test_node():
     print("- Server URL is incorrect")
     print("- Specific endpoints are not enabled")
     print("- Model doesn't support certain features")
+
 
 if __name__ == "__main__":
     test_node()
