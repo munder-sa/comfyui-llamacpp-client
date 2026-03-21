@@ -1,27 +1,18 @@
 ### 2026-03-21
-- パラメータバリデーションエラーの根本的な修正。
-  - `param_utils.py` に `safe_convert_to_int()` と `safe_convert_to_float()` 関数を追加し、型変換時のエラーハンドリングを強化。
-  - 空文字列（`""`）、空リスト（`"[]"`）、不正な JSON 形式などのパラメータを安全に処理し、デフォルト値にフォールバック。
-  - JSON 配列パラメータの解析失敗時も、空配列のデフォルト値でフォールバック処理を実装。
-- `web/llamacpp_client_extension.js` に `initializeWidgetValues()` 関数を追加。
-  - ノード作成・ロード時に全ウィジェットを安全に初期化し、`null`、`undefined`、空文字列などが発生しないようにする。
-  - JSON 形式パラメータが文字列として正しく保持されることを確認。
-- `utils/llama_client.py` でデバッグログを強化。
-  - リクエスト送信前に、送信されるパラメータの型と値をログ出力し、デバッグ時の問題特定を容易に。
-- エンドポイント切り替え時のパラメータ表示バグを修正。
-  - `web/llamacpp_client_extension.js` の `endpointFields` 定義を完全化し、各エンドポイントに必要なすべてのパラメータを定義。
-  - `completion` エンドポイント：44 パラメータ
-  - `chat_completions` エンドポイント：20 パラメータ
-  - `infill` エンドポイント：14 パラメータ
-  - その他エンドポイントも必要なパラメータを定義
-- JavaScript 拡張機能の堅牢性を向上。
-  - `node.masterWidgets` のコピー処理を安全化（未定義の場合のフォールバック追加）。
-  - `images` ピンの検出ロジックを安全化（`input` の未定義チェックを追加）。
+- Fixed parameter display bug during endpoint switching.
+  - Completed `endpointFields` definition in `web/llamacpp_client_extension.js` with all required parameters for each endpoint.
+  - `completion` endpoint: 44 parameters
+  - `chat_completions` endpoint: 20 parameters
+  - `infill` endpoint: 14 parameters
+  - Other endpoints also have their required parameters defined
+- Improved JavaScript extension robustness.
+  - Added fallback for `node.masterWidgets` copy operation (when undefined).
+  - Added safety check for `images` pin detection logic (check for undefined `input`).
 
 ### 2026-03-20
-- `image_data` ウィジェットの表示・非表示が正しく切り替わらない問題を修正。
-  - ウィジェットのHTML要素が隠しきれていなかった問題と、LiteGraphの描画ロジックの競合を解決するため、不要なウィジェットを`node.widgets`配列から動的に削除・再構築するアプローチに変更。
-  - これにより、`image_data` や `lora` など、他のウィジェットがノードの枠からはみ出す表示バグを根本的に修正。
-- 拡張機能のJavaScriptファイルを `web/js/` から `web/` 直下に移動し、ComfyUI環境でのロード問題を解消。
-  - 関連するインポートパスも修正。
-- `endpoint` 切り替え時のUI更新ロジックを全体的に見直し、より堅牢な実装に変更。
+- Fixed `image_data` widget visibility toggle issue.
+  - Changed approach to dynamically remove and rebuild unnecessary widgets from `node.widgets` array to resolve issues with HTML elements not being properly hidden and conflicts with LiteGraph rendering logic.
+  - This fundamentally fixed display bugs where widgets like `image_data` and `lora` were overflowing outside the node frame.
+- Moved extension JavaScript file from `web/js/` to `web/` root directory to resolve loading issues in ComfyUI environment.
+  - Also fixed related import paths.
+- Completely reviewed and updated UI update logic during `endpoint` switching for a more robust implementation.
