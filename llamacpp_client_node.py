@@ -2,25 +2,25 @@ import json
 from typing import Any, Dict, Tuple
 
 try:
-    from utils.llama_client import LlamaCppAPIClient
-    from utils.logger import set_debug_mode, log_debug, log_error
     from utils.image_utils import (
-        build_vision_content,
         DEFAULT_JPEG_QUALITY,
-        extract_image_metadata,
+        build_vision_content,
         detect_image_format,
+        extract_image_metadata,
         extract_tensor_metadata,
     )
+    from utils.llama_client import LlamaCppAPIClient
+    from utils.logger import log_debug, log_error, set_debug_mode
 except ImportError:
-    from .utils.llama_client import LlamaCppAPIClient
-    from .utils.logger import set_debug_mode, log_debug, log_error
     from .utils.image_utils import (
-        build_vision_content,
         DEFAULT_JPEG_QUALITY,
-        extract_image_metadata,
+        build_vision_content,
         detect_image_format,
+        extract_image_metadata,
         extract_tensor_metadata,
     )
+    from .utils.llama_client import LlamaCppAPIClient
+    from .utils.logger import log_debug, log_error, set_debug_mode
 
 
 class LlamaCppClientNode:
@@ -54,24 +54,10 @@ class LlamaCppClientNode:
                     ],
                     {"default": "completion", "tooltip": "API endpoint to use"},
                 ),
-                "prompt": (
-                    "STRING",
-                    {
-                        "default": "",
-                        "multiline": True,
-                        "tooltip": "The prompt text for completion/chat",
-                    },
-                ),
             },
             "optional": {
-                "system_message": (
-                    "STRING",
-                    {"default": "", "multiline": True, "tooltip": "System message for chat"},
-                ),
-                "user_message": (
-                    "STRING",
-                    {"default": "", "multiline": True, "tooltip": "User message for chat"},
-                ),
+                # ========== 共通パラメータ（先頭）==========
+                # 温度制御
                 "temperature": (
                     "FLOAT",
                     {
@@ -82,6 +68,159 @@ class LlamaCppClientNode:
                         "tooltip": "Sampling temperature",
                     },
                 ),
+                "top_k": (
+                    "INT",
+                    {"default": 40, "min": 0, "max": 1000, "tooltip": "Top-k sampling"},
+                ),
+                "top_p": (
+                    "FLOAT",
+                    {
+                        "default": 0.95,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.01,
+                        "tooltip": "Top-p sampling",
+                    },
+                ),
+                "min_p": (
+                    "FLOAT",
+                    {
+                        "default": 0.05,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.01,
+                        "tooltip": "Min-p sampling",
+                    },
+                ),
+                "seed": (
+                    "INT",
+                    {
+                        "default": -1,
+                        "min": -1,
+                        "max": 2**31 - 1,
+                        "tooltip": "Random seed (-1 for random)",
+                    },
+                ),
+                # 繰り返し制御
+                "repeat_penalty": ("FLOAT", {"default": 1.1, "min": 0.1, "max": 5.0, "step": 0.01}),
+                "repeat_last_n": ("INT", {"default": 64, "min": -1, "max": 2048}),
+                "presence_penalty": (
+                    "FLOAT",
+                    {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.01},
+                ),
+                "frequency_penalty": (
+                    "FLOAT",
+                    {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.01},
+                ),
+                # DRY 制御
+                "dry_multiplier": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 5.0, "step": 0.01}),
+                "dry_base": ("FLOAT", {"default": 1.75, "min": 1.0, "max": 5.0, "step": 0.01}),
+                "dry_allowed_length": ("INT", {"default": 2, "min": 1, "max": 100}),
+                "dry_penalty_last_n": ("INT", {"default": -1, "min": -1, "max": 2048}),
+                "dry_sequence_breakers": (
+                    "STRING",
+                    {"default": '["\\n", ":", "\\"", "*"]', "multiline": False},
+                ),
+                # ミロスタット制御
+                "mirostat": ("INT", {"default": 0, "min": 0, "max": 2}),
+                "mirostat_tau": ("FLOAT", {"default": 5.0, "min": 0.1, "max": 20.0, "step": 0.1}),
+                "mirostat_eta": (
+                    "FLOAT",
+                    {"default": 0.1, "min": 0.001, "max": 1.0, "step": 0.001},
+                ),
+                # その他サンプリング
+                "typical_p": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "dynatemp_range": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 5.0, "step": 0.01}),
+                "dynatemp_exponent": (
+                    "FLOAT",
+                    {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.01},
+                ),
+                "xtc_probability": (
+                    "FLOAT",
+                    {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01},
+                ),
+                "xtc_threshold": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01}),
+                # 通常制御
+                "n_keep": ("INT", {"default": 0, "min": -1, "max": 2048}),
+                "stop_sequences": ("STRING", {"default": "[]", "multiline": True}),
+                "ignore_eos": ("BOOLEAN", {"default": False}),
+                "stream": ("BOOLEAN", {"default": False}),
+                "n_probs": ("INT", {"default": 0, "min": 0, "max": 100}),
+                "min_keep": ("INT", {"default": 0, "min": 0, "max": 100}),
+                "post_sampling_probs": ("BOOLEAN", {"default": False}),
+                "return_tokens": ("BOOLEAN", {"default": False}),
+                "timings_per_token": ("BOOLEAN", {"default": False}),
+                "grammar": ("STRING", {"default": "", "multiline": True}),
+                "logit_bias": ("STRING", {"default": "[]", "multiline": True}),
+                "cache_prompt": ("BOOLEAN", {"default": True}),
+                "id_slot": ("INT", {"default": -1, "min": -1, "max": 100}),
+                "samplers": (
+                    "STRING",
+                    {
+                        "default": '["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]',
+                        "multiline": False,
+                    },
+                ),
+                "t_max_predict_ms": ("INT", {"default": 0, "min": 0, "max": 60000}),
+                "lora": ("STRING", {"default": "[]", "multiline": True}),
+                # エンドポイント固有パラメータ（共通パラメータの後）
+                # completion/infill 固有
+                "prompt": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "tooltip": "The prompt text for completion/chat",
+                    },
+                ),
+                "n_predict": (
+                    "INT",
+                    {
+                        "default": -1,
+                        "min": -1,
+                        "max": 1000000,
+                        "tooltip": "Number of tokens to predict (-1 = infinity)",
+                    },
+                ),
+                "json_schema": ("STRING", {"default": "", "multiline": True}),
+                "response_fields": ("STRING", {"default": "[]", "multiline": False}),
+                # chat_completions 固有
+                "system_message": (
+                    "STRING",
+                    {"default": "", "multiline": True, "tooltip": "System message for chat"},
+                ),
+                "user_message": (
+                    "STRING",
+                    {"default": "", "multiline": True, "tooltip": "User message for chat"},
+                ),
+                "assistant_message": ("STRING", {"default": "", "multiline": True}),
+                "messages": ("STRING", {"default": "[]", "multiline": True}),
+                "max_tokens": ("INT", {"default": -1, "min": -1, "max": 1000000}),
+                "model": ("STRING", {"default": "", "multiline": False}),
+                "tools": ("STRING", {"default": "[]", "multiline": True}),
+                "tool_choice": ("STRING", {"default": "auto", "multiline": False}),
+                "response_format": ("STRING", {"default": "", "multiline": True}),
+                # embeddings 固有
+                "input_text": ("STRING", {"default": "", "multiline": True}),
+                "encoding_format": (["float", "base64"], {"default": "float"}),
+                "embd_normalize": ("INT", {"default": 2, "min": -1, "max": 10}),
+                # tokenize 固有
+                "content": ("STRING", {"default": "", "multiline": True}),
+                "tokens": ("STRING", {"default": "[]", "multiline": False}),
+                "add_special": ("BOOLEAN", {"default": False}),
+                "parse_special": ("BOOLEAN", {"default": True}),
+                "with_pieces": ("BOOLEAN", {"default": False}),
+                # detokenize 固有
+                # apply_template 固有
+                # infill 固有（completion と重複あり）
+                "input_prefix": ("STRING", {"default": "", "multiline": True}),
+                "input_suffix": ("STRING", {"default": "", "multiline": True}),
+                "input_extra": ("STRING", {"default": "[]", "multiline": True}),
+                # reranking 固有
+                "query": ("STRING", {"default": "", "multiline": True}),
+                "documents": ("STRING", {"default": "[]", "multiline": True}),
+                "top_n": ("INT", {"default": 10, "min": 1, "max": 1000}),
+                # 特殊パラメータ（最後）
                 "api_key": (
                     "STRING",
                     {
@@ -99,77 +238,11 @@ class LlamaCppClientNode:
                         "tooltip": "Request timeout in seconds",
                     },
                 ),
-                "n_predict": (
-                    "INT",
-                    {
-                        "default": -1,
-                        "min": -1,
-                        "max": 1000000,
-                        "tooltip": "Number of tokens to predict (-1 = infinity)",
-                    },
-                ),
-                "top_k": ("INT", {"default": 40, "min": 0, "max": 1000, "tooltip": "Top-k sampling"}),
-                "top_p": ("FLOAT", {"default": 0.95, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Top-p sampling"}),
-                "min_p": ("FLOAT", {"default": 0.05, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Min-p sampling"}),
-                "seed": ("INT", {"default": -1, "min": -1, "max": 2**31 - 1, "tooltip": "Random seed (-1 for random)"}),
-                "dynatemp_range": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 5.0, "step": 0.01}),
-                "dynatemp_exponent": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.01}),
-                "xtc_probability": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "xtc_threshold": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "repeat_penalty": ("FLOAT", {"default": 1.1, "min": 0.1, "max": 5.0, "step": 0.01}),
-                "repeat_last_n": ("INT", {"default": 64, "min": -1, "max": 2048}),
-                "presence_penalty": ("FLOAT", {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.01}),
-                "frequency_penalty": ("FLOAT", {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.01}),
-                "dry_multiplier": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 5.0, "step": 0.01}),
-                "dry_base": ("FLOAT", {"default": 1.75, "min": 1.0, "max": 5.0, "step": 0.01}),
-                "dry_allowed_length": ("INT", {"default": 2, "min": 1, "max": 100}),
-                "dry_penalty_last_n": ("INT", {"default": -1, "min": -1, "max": 2048}),
-                "dry_sequence_breakers": ("STRING", {"default": '["\\n", ":", "\\"", "*"]', "multiline": False}),
-                "mirostat": ("INT", {"default": 0, "min": 0, "max": 2}),
-                "mirostat_tau": ("FLOAT", {"default": 5.0, "min": 0.1, "max": 20.0, "step": 0.1}),
-                "mirostat_eta": ("FLOAT", {"default": 0.1, "min": 0.001, "max": 1.0, "step": 0.001}),
-                "typical_p": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "n_keep": ("INT", {"default": 0, "min": -1, "max": 2048}),
-                "stop_sequences": ("STRING", {"default": "[]", "multiline": True}),
-                "ignore_eos": ("BOOLEAN", {"default": False}),
-                "stream": ("BOOLEAN", {"default": False}),
-                "n_probs": ("INT", {"default": 0, "min": 0, "max": 100}),
-                "min_keep": ("INT", {"default": 0, "min": 0, "max": 100}),
-                "post_sampling_probs": ("BOOLEAN", {"default": False}),
-                "return_tokens": ("BOOLEAN", {"default": False}),
-                "timings_per_token": ("BOOLEAN", {"default": False}),
-                "grammar": ("STRING", {"default": "", "multiline": True}),
-                "json_schema": ("STRING", {"default": "", "multiline": True}),
-                "logit_bias": ("STRING", {"default": "[]", "multiline": True}),
-                "cache_prompt": ("BOOLEAN", {"default": True}),
-                "id_slot": ("INT", {"default": -1, "min": -1, "max": 100}),
-                "samplers": ("STRING", {"default": '["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]', "multiline": False}),
-                "t_max_predict_ms": ("INT", {"default": 0, "min": 0, "max": 60000}),
-                "messages": ("STRING", {"default": "[]", "multiline": True}),
-                "assistant_message": ("STRING", {"default": "", "multiline": True}),
-                "max_tokens": ("INT", {"default": -1, "min": -1, "max": 1000000}),
-                "model": ("STRING", {"default": "", "multiline": False}),
-                "tools": ("STRING", {"default": "[]", "multiline": True}),
-                "tool_choice": ("STRING", {"default": "auto", "multiline": False}),
-                "response_format": ("STRING", {"default": "", "multiline": True}),
-                "input_text": ("STRING", {"default": "", "multiline": True}),
-                "encoding_format": (["float", "base64"], {"default": "float"}),
-                "embd_normalize": ("INT", {"default": 2, "min": -1, "max": 10}),
-                "content": ("STRING", {"default": "", "multiline": True}),
-                "tokens": ("STRING", {"default": "[]", "multiline": False}),
-                "add_special": ("BOOLEAN", {"default": False}),
-                "parse_special": ("BOOLEAN", {"default": True}),
-                "with_pieces": ("BOOLEAN", {"default": False}),
-                "input_prefix": ("STRING", {"default": "", "multiline": True}),
-                "input_suffix": ("STRING", {"default": "", "multiline": True}),
-                "input_extra": ("STRING", {"default": "[]", "multiline": True}),
-                "query": ("STRING", {"default": "", "multiline": True}),
-                "documents": ("STRING", {"default": "[]", "multiline": True}),
-                "top_n": ("INT", {"default": 10, "min": 1, "max": 1000}),
-                "lora": ("STRING", {"default": "[]", "multiline": True}),
-                "response_fields": ("STRING", {"default": "[]", "multiline": False}),
                 "image_data": ("STRING", {"default": "[]", "multiline": True}),
-                "images": ("IMAGE", {"tooltip": "ComfyUI image tensor to send to the multimodal model"}),
+                "images": (
+                    "IMAGE",
+                    {"tooltip": "ComfyUI image tensor to send to the multimodal model"},
+                ),
                 "extract_metadata": ("BOOLEAN", {"default": True}),
                 "debug_mode": ("BOOLEAN", {"default": True}),
             },
@@ -256,22 +329,21 @@ class LlamaCppClientNode:
         extract_metadata: bool = True,
         debug_mode: bool = True,
     ) -> Tuple[str, str, str, int, Dict[str, Any]]:
-        
         # Initialize metadata dictionary
         metadata: Dict[str, Any] = {}
-        
+
         if debug_mode:
             set_debug_mode(True)
-        
+
         client = LlamaCppAPIClient(server_url, api_key=api_key, timeout=timeout)
-        
+
         try:
             response_text = ""
             raw_response = ""
             error = ""
             status_code = 200
             metadata_list = []
-            
+
             if endpoint == "completion":
                 kwargs = {
                     "prompt": prompt,
@@ -311,7 +383,7 @@ class LlamaCppClientNode:
                     "lora": json.loads(lora) if lora else [],
                 }
                 response, raw_response, error, status_code = client.handle_completion(**kwargs)
-                
+
             elif endpoint == "chat_completions":
                 # LlamaCppAPIClient（llama_client.py）にメッセージの組み立てを丸投げする
                 kwargs = {
@@ -357,8 +429,14 @@ class LlamaCppClientNode:
                     "images": images,
                     "extract_metadata": extract_metadata,
                 }
-                response, raw_response, error, status_code, metadata_list = client.handle_chat_completions(**kwargs)
-                
+                (
+                    response,
+                    raw_response,
+                    error,
+                    status_code,
+                    metadata_list,
+                ) = client.handle_chat_completions(**kwargs)
+
             elif endpoint == "embeddings":
                 kwargs = {
                     "input_text": input_text,
@@ -366,7 +444,7 @@ class LlamaCppClientNode:
                     "encoding_format": encoding_format,
                 }
                 response, raw_response, error, status_code = client.handle_embeddings(**kwargs)
-                
+
             elif endpoint == "tokenize":
                 kwargs = {
                     "content": content,
@@ -375,19 +453,19 @@ class LlamaCppClientNode:
                     "with_pieces": with_pieces,
                 }
                 response, raw_response, error, status_code = client.handle_tokenize(**kwargs)
-                
+
             elif endpoint == "detokenize":
                 kwargs = {
                     "tokens": tokens,
                 }
                 response, raw_response, error, status_code = client.handle_detokenize(**kwargs)
-                
+
             elif endpoint == "apply_template":
                 kwargs = {
                     "messages": messages,
                 }
                 response, raw_response, error, status_code = client.handle_apply_template(**kwargs)
-                
+
             elif endpoint == "infill":
                 kwargs = {
                     "input_prefix": input_prefix,
@@ -430,7 +508,7 @@ class LlamaCppClientNode:
                     "lora": json.loads(lora) if lora else [],
                 }
                 response, raw_response, error, status_code = client.handle_infill(**kwargs)
-                
+
             elif endpoint == "reranking":
                 kwargs = {
                     "model": model,
@@ -439,7 +517,7 @@ class LlamaCppClientNode:
                     "top_n": top_n,
                 }
                 response, raw_response, error, status_code = client.handle_reranking(**kwargs)
-            
+
             # --- ここから修正：レスポンスからのテキスト抽出処理 ---
             if isinstance(response, dict):
                 if endpoint == "chat_completions":
@@ -452,15 +530,15 @@ class LlamaCppClientNode:
                     response_text = response.get("content", response.get("text", ""))
             else:
                 response_text = str(response) if response else ""
-            
+
             # メタデータの回収
             if metadata_list:
                 for i, meta in enumerate(metadata_list):
                     metadata[f"image_{i}"] = meta
-            
+
             if error:
                 log_error(f"API Error: {error}")
-                
+
         except Exception as e:
             log_error(f"Exception during request: {e}")
             response_text = ""
@@ -469,7 +547,7 @@ class LlamaCppClientNode:
             status_code = 500
         finally:
             client.close()
-        
+
         return response_text, raw_response, error, status_code, metadata
 
 
@@ -478,6 +556,4 @@ NODE_CLASS_MAPPINGS = {
     "LlamaCppClientNode": LlamaCppClientNode,
 }
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "LlamaCppClientNode": "LlamaCpp Client (Multimodal)"
-}
+NODE_DISPLAY_NAME_MAPPINGS = {"LlamaCppClientNode": "LlamaCpp Client (Multimodal)"}

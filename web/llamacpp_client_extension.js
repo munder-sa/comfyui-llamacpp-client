@@ -5,70 +5,66 @@ import { app } from "../../scripts/app.js";
 console.log("[LlamaCppClient] App imported successfully.");
 
 // 共通パラメータのリスト（常に画面に表示される）
+// 順序：温度制御 → 確率制御 → 繰り返し制御 → ドメイン制御 → ミロスタット制御 → 通常制御 → 時間制御 → その他
 const commonParams = [
     "temperature", "top_k", "top_p", "min_p", "seed",
     "repeat_penalty", "repeat_last_n", "presence_penalty", "frequency_penalty",
     "mirostat", "mirostat_tau", "mirostat_eta", "typical_p",
-    "n_keep", "stop_sequences", "ignore_eos", "stream", "n_probs",
-    "min_keep", "post_sampling_probs", "return_tokens", "timings_per_token",
     "dynatemp_range", "dynatemp_exponent", "xtc_probability", "xtc_threshold",
     "dry_multiplier", "dry_base", "dry_allowed_length", "dry_penalty_last_n",
-    "dry_sequence_breakers", "grammar", "logit_bias", "cache_prompt",
+    "dry_sequence_breakers",
+    "n_keep", "stop_sequences", "ignore_eos", "stream", "n_probs",
+    "min_keep", "post_sampling_probs", "return_tokens", "timings_per_token",
+    "grammar", "logit_bias", "cache_prompt",
     "id_slot", "samplers", "t_max_predict_ms", "lora"
 ];
 
-// 各エンドポイントで使用されるパラメータの完全なリスト
-// Python の INPUT_TYPES に基づいて完全な定義を行う
-const endpointFields = {
+// 各エンドポイント固有のパラメータリスト（共通パラメータを除く）
+// 順序：エンドポイント固有パラメータ → 共通パラメータ（重複除く）
+const endpointSpecificFields = {
     "completion": [
-        "prompt", "n_predict", "temperature", "top_k", "top_p", "min_p", "seed",
-        "dynatemp_range", "dynatemp_exponent", "xtc_probability", "xtc_threshold",
-        "repeat_penalty", "repeat_last_n", "presence_penalty", "frequency_penalty",
-        "dry_multiplier", "dry_base", "dry_allowed_length", "dry_penalty_last_n",
-        "dry_sequence_breakers", "mirostat", "mirostat_tau", "mirostat_eta",
-        "typical_p", "n_keep", "stop_sequences", "ignore_eos", "stream", "n_probs",
-        "min_keep", "post_sampling_probs", "return_tokens", "timings_per_token",
-        "grammar", "json_schema", "logit_bias", "cache_prompt", "id_slot", "samplers",
-        "t_max_predict_ms", "lora", "response_fields", "image_data"
+        "prompt", "n_predict", "json_schema", "response_fields", "image_data"
     ],
     "chat_completions": [
         "messages", "system_message", "user_message", "assistant_message", "max_tokens",
-        "model", "tools", "tool_choice", "response_format", "image_data",
-        "temperature", "top_k", "top_p", "min_p", "seed", "stream", "stop_sequences",
-        "presence_penalty", "frequency_penalty", "n_probs", "min_keep",
-        "post_sampling_probs", "return_tokens", "timings_per_token",
-        "dynatemp_range", "dynatemp_exponent", "xtc_probability", "xtc_threshold",
-        "repeat_penalty", "repeat_last_n", "mirostat", "mirostat_tau", "mirostat_eta",
-        "typical_p", "lora"
+        "model", "tools", "tool_choice", "response_format", "image_data"
     ],
     "embeddings": ["input_text", "encoding_format", "embd_normalize", "model"],
     "tokenize": ["content", "add_special", "parse_special", "with_pieces"],
     "detokenize": ["tokens"],
     "apply_template": ["messages"],
     "infill": [
-        "input_prefix", "input_suffix", "input_extra", "prompt",
-        "n_predict", "temperature", "top_k", "top_p", "min_p", "seed",
-        "repeat_penalty", "repeat_last_n", "presence_penalty", "frequency_penalty",
-        "stop_sequences", "stream", "cache_prompt", "id_slot", "samplers",
-        "t_max_predict_ms", "grammar", "logit_bias", "n_probs", "min_keep",
-        "post_sampling_probs", "return_tokens", "timings_per_token", "ignore_eos",
-        "n_keep", "dynatemp_range", "dynatemp_exponent", "xtc_probability", "xtc_threshold",
-        "mirostat", "mirostat_tau", "mirostat_eta", "typical_p", "lora"
+        "input_prefix", "input_suffix", "input_extra", "prompt", "n_predict",
+        "json_schema", "response_fields", "image_data"
     ],
     "reranking": ["query", "documents", "top_n", "model"]
 };
 
-// 全てのエンドポイント専用フィールドの集合を作成
-const allToggleFieldsMap = {};
-for (const key in endpointFields) {
-    if (Object.prototype.hasOwnProperty.call(endpointFields, key)) {
-        const fields = endpointFields[key];
-        for (let i = 0; i < fields.length; i++) {
-            allToggleFieldsMap[fields[i]] = true;
-        }
+// 特殊パラメータ（最後に配置）
+const specialParams = [
+    "api_key", "timeout", "image_data", "images", "extract_metadata", "debug_mode"
+];
+
+// 共通パラメータのセット（高速検索用）
+const commonParamsSet = new Set(commonParams);
+
+// 全てのパラメータ（共通 + 固有）の完全リストをエンドポイントごとに構築
+// 順序：共通パラメータ → エンドポイント固有パラメータ（Python 側と一致）
+const endpointFields = {};
+for (const endpoint in endpointSpecificFields) {
+    const specificFields = endpointSpecificFields[endpoint];
+    // 共通パラメータ + 固有パラメータ（重複を除く）
+    const allFields = [...commonParams, ...specificFields];
+    endpointFields[endpoint] = allFields;
+}
+
+// 固有パラメータのセット（共通パラメータではないもの）
+const allSpecificFields = new Set();
+for (const fields of Object.values(endpointSpecificFields)) {
+    for (const field of fields) {
+        allSpecificFields.add(field);
     }
 }
-const allToggleFields = Object.keys(allToggleFieldsMap);
 
 function updateUI(node) {
     try {
@@ -135,43 +131,78 @@ function updateUI(node) {
             }
         }
 
-        const newWidgets = [];
-        for (let i = 0; i < node.masterWidgets.length; i++) {
-            const w = node.masterWidgets[i];
-            const isToggleField = allToggleFields.indexOf(w.name) !== -1;
-            const isCommonParam = commonParams.indexOf(w.name) !== -1;
+        // images_data は接続時に非表示にする
+        const shouldHideImageData = hasImageLink;
 
-            let isVisible = true;
-            if (isToggleField) {
-                // 共通パラメータは常に表示
-                if (isCommonParam) {
-                    isVisible = true;
-                } else {
-                    // エンドポイント固有パラメータはエンドポイントに応じて表示
-                    isVisible = fieldsToShow.indexOf(w.name) !== -1;
-                }
-                // images ピンが接続されている場合、image_data を非表示
-                if (w.name === "image_data" && isVisible && hasImageLink) {
-                    isVisible = false;
-                }
+        // 新しいウィジェット配列を構築（順序を保証）
+        const newWidgets = [];
+        const addedWidgetNames = new Set();
+
+        // 1. 共通パラメータを先に追加（順序を保つ）
+        for (const paramName of commonParams) {
+            // image_data は接続時にスキップ
+            if (paramName === "image_data" && shouldHideImageData) {
+                continue;
             }
 
-            if (isVisible) {
-                newWidgets.push(w);
-                // DOM 要素（textarea など）を再表示
-                if (w.inputEl) {
-                    w.inputEl.style.display = "block";
-                    w.inputEl.hidden = false;
-                    if (w.inputEl.parentNode && typeof w.inputEl.parentNode.className === "string" && w.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
-                        w.inputEl.parentNode.style.display = "block";
+            // マスターウィジェットから対応するウィジェットを探す
+            for (const w of node.masterWidgets) {
+                if (w.name === paramName && !addedWidgetNames.has(w.name)) {
+                    newWidgets.push(w);
+                    addedWidgetNames.add(w.name);
+
+                    // DOM 要素を再表示
+                    if (w.inputEl) {
+                        w.inputEl.style.display = "block";
+                        w.inputEl.hidden = false;
+                        if (w.inputEl.parentNode && typeof w.inputEl.parentNode.className === "string" && w.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
+                            w.inputEl.parentNode.style.display = "block";
+                        }
                     }
+                    if (w.element) {
+                        w.element.style.display = "block";
+                        w.element.hidden = false;
+                    }
+                    break;
                 }
-                if (w.element) {
-                    w.element.style.display = "block";
-                    w.element.hidden = false;
+            }
+        }
+
+        // 2. エンドポイント固有パラメータを追加（順序を保つ）
+        const specificFields = endpointSpecificFields[currentEndpoint] || [];
+        for (const paramName of specificFields) {
+            // image_data は接続時にスキップ
+            if (paramName === "image_data" && shouldHideImageData) {
+                continue;
+            }
+
+            // マスターウィジェットから対応するウィジェットを探す
+            for (const w of node.masterWidgets) {
+                if (w.name === paramName && !addedWidgetNames.has(w.name)) {
+                    newWidgets.push(w);
+                    addedWidgetNames.add(w.name);
+
+                    // DOM 要素を再表示
+                    if (w.inputEl) {
+                        w.inputEl.style.display = "block";
+                        w.inputEl.hidden = false;
+                        if (w.inputEl.parentNode && typeof w.inputEl.parentNode.className === "string" && w.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
+                            w.inputEl.parentNode.style.display = "block";
+                        }
+                    }
+                    if (w.element) {
+                        w.element.style.display = "block";
+                        w.element.hidden = false;
+                    }
+                    break;
                 }
-            } else {
-                // DOM 要素（textarea など）を隠す
+            }
+        }
+
+        // 3. 非表示にするウィジェットの DOM を隠す
+        for (const w of node.masterWidgets) {
+            if (!addedWidgetNames.has(w.name)) {
+                // DOM 要素を隠す
                 if (w.inputEl) {
                     w.inputEl.style.display = "none";
                     w.inputEl.hidden = true;
