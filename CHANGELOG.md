@@ -1,3 +1,33 @@
+### 2026-03-28
+- Completed comprehensive test suite for core functionality.
+  - Added `tests/test_image_utils.py` with 8 tests for image processing utilities.
+    - `test_detect_image_format`: Validates PNG format detection
+    - `test_extract_image_metadata`: Verifies metadata extraction
+    - `test_extract_tensor_metadata`: Tests tensor metadata extraction (batch_size, channels)
+    - `test_validate_image_data`: Confirms data URI validation
+    - `test_tensor_to_base64_data_uri`: Validates tensor to base64 conversion
+    - `test_build_vision_content`: Tests vision content building with text and image
+    - `test_process_image_data_string`: Validates image data string processing
+  - Added `tests/test_llama_client.py` with 5 tests for API client.
+    - `test_make_request_success`: HTTP 200 success handling
+    - `test_make_request_failure`: HTTP 500 error handling
+    - `test_handle_completion`: Completion endpoint with mocked requests
+    - `test_handle_chat_completions`: Chat completions endpoint with mocked requests
+  - Added `tests/test_param_utils.py` with 20+ tests for parameter utilities.
+    - JSON parameter parsing tests (stop_sequences, logit_bias, messages, etc.)
+    - Parameter cleaning and validation tests
+    - Type conversion tests (safe_convert_to_int, safe_convert_to_float)
+    - Parameter mapping tests
+  - Added `tests/test_node.py` with 3 tests for node functionality.
+    - `test_process_request_success`: Successful request processing
+    - `test_process_request_failure`: Error handling in request processing
+    - `test_input_types`: Validates INPUT_TYPES structure
+  - Added `tests/test_ui_logic.py` with 2 tests for UI updates.
+    - `test_update_ui_success`: Successful UI update
+    - `test_update_ui_failure`: UI update error handling
+  - All tests use mock-based approach (unittest.mock) for isolated testing without requiring live server.
+  - Tests cover parameter validation, type conversion, image processing, and API client functionality.
+
 ### 2026-03-22
 - Improved system message placement logic in `chat_completions` endpoint.
   - Refactored message building logic in `llamacpp_client_node.py` to use a stack-based approach that guarantees system message is always placed at index 0.

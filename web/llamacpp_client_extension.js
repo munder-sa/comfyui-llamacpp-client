@@ -89,7 +89,7 @@ for (const endpoint in endpointSpecificFields) {
     // 重複を除きながら順序を保つ
     const seen = new Set();
     const allFields = [];
-    
+
     // 1. 優先パラメータ
     for (const f of priorityFields) {
         if (!seen.has(f)) {
@@ -97,7 +97,7 @@ for (const endpoint in endpointSpecificFields) {
             seen.add(f);
         }
     }
-    
+
     // 2. 共通パラメータ
     for (const f of commonParams) {
         if (!seen.has(f)) {
@@ -105,7 +105,7 @@ for (const endpoint in endpointSpecificFields) {
             seen.add(f);
         }
     }
-    
+
     // 3. その他固有パラメータ
     for (const f of otherSpecificFields) {
         if (!seen.has(f)) {
@@ -113,8 +113,34 @@ for (const endpoint in endpointSpecificFields) {
             seen.add(f);
         }
     }
-    
+
     endpointFields[endpoint] = allFields;
+}
+
+function isConvertedToInput(node, widgetName) {
+    if (!node) return false;
+
+    // Check exposed inputs array (standard ComfyUI)
+    if (node.inputs && Array.isArray(node.inputs)) {
+        for (let i = 0; i < node.inputs.length; i++) {
+            const input = node.inputs[i];
+            if (!input) continue;
+            if (input.name === widgetName) {
+                return true;
+            }
+        }
+    }
+
+    // Check internal _ins mapping (ComfyUI internal representation)
+    if (node._ins) {
+        for (const key in node._ins) {
+            const slot = node._ins[key];
+            if (!slot) continue;
+            if (slot.name === widgetName) return true;
+        }
+    }
+
+    return false;
 }
 
 function updateUI(node) {
@@ -186,7 +212,7 @@ function updateUI(node) {
 
         // 表示するパラメータのセットを作成
         const showSet = new Set();
-        
+
         // 優先パラメータ
         const priorityFields = endpointPriorityFields[currentEndpoint] || [];
         for (const f of priorityFields) {
@@ -194,14 +220,14 @@ function updateUI(node) {
                 showSet.add(f);
             }
         }
-        
+
         // 共通パラメータ
         for (const f of commonParams) {
             if (f !== "image_data" || !shouldHideImageData) {
                 showSet.add(f);
             }
         }
-        
+
         // その他固有パラメータ
         const otherSpecificFields = endpointOtherSpecificFields[currentEndpoint] || [];
         for (const f of otherSpecificFields) {
@@ -209,32 +235,37 @@ function updateUI(node) {
                 showSet.add(f);
             }
         }
-        
+
         // 特殊パラメータ
         for (const f of specialParams) {
             if (f !== "image_data" || !shouldHideImageData) {
                 showSet.add(f);
             }
         }
-        
-        // endpoint ウィジェットは常に含める
-        showSet.add("endpoint");
 
-        // 既存ウィジェットを並べ替え（値を保持）
+        // endpoint と server_url ウィジェットは常に含める（requiredパラメータ）
+        showSet.add("endpoint");
+        showSet.add("server_url");
+
+        // 表示対象のウィジェットのみを順序通りに構築
         const newWidgetOrder = [];
         const addedNames = new Set();
 
-        // 1. endpoint を先頭に（インデックスズレ防止）
-        if (endpointWidget && !addedNames.has(endpointWidget.name)) {
-            newWidgetOrder.push(endpointWidget);
-            addedNames.add(endpointWidget.name);
+        // 1. Requiredパラメータ（endpoint, server_url）を先頭に
+        const requiredParams = ["endpoint", "server_url"];
+        for (const name of requiredParams) {
+            const w = node.masterWidgets.find(mw => mw.name === name);
+            if (w && showSet.has(name) && !addedNames.has(w.name)) {
+                newWidgetOrder.push(w);
+                addedNames.add(w.name);
+            }
         }
 
         // 2. 優先パラメータ
         for (const name of priorityFields) {
             if (name === "image_data" && shouldHideImageData) continue;
             const w = node.masterWidgets.find(mw => mw.name === name);
-            if (w && !addedNames.has(w.name)) {
+            if (w && showSet.has(name) && !addedNames.has(w.name)) {
                 newWidgetOrder.push(w);
                 addedNames.add(w.name);
             }
@@ -244,7 +275,7 @@ function updateUI(node) {
         for (const name of commonParams) {
             if (name === "image_data" && shouldHideImageData) continue;
             const w = node.masterWidgets.find(mw => mw.name === name);
-            if (w && !addedNames.has(w.name)) {
+            if (w && showSet.has(name) && !addedNames.has(w.name)) {
                 newWidgetOrder.push(w);
                 addedNames.add(w.name);
             }
@@ -254,7 +285,7 @@ function updateUI(node) {
         for (const name of otherSpecificFields) {
             if (name === "image_data" && shouldHideImageData) continue;
             const w = node.masterWidgets.find(mw => mw.name === name);
-            if (w && !addedNames.has(w.name)) {
+            if (w && showSet.has(name) && !addedNames.has(w.name)) {
                 newWidgetOrder.push(w);
                 addedNames.add(w.name);
             }
@@ -264,67 +295,80 @@ function updateUI(node) {
         for (const name of specialParams) {
             if (name === "image_data" && shouldHideImageData) continue;
             const w = node.masterWidgets.find(mw => mw.name === name);
-            if (w && !addedNames.has(w.name)) {
+            if (w && showSet.has(name) && !addedNames.has(w.name)) {
                 newWidgetOrder.push(w);
                 addedNames.add(w.name);
             }
         }
 
-        // 残りのウィジェット（マスターに存在するが順序に含まれないもの）
-        for (const mw of node.masterWidgets) {
-            if (!addedNames.has(mw.name)) {
-                newWidgetOrder.push(mw);
-            }
-        }
-
-        // 表示/非表示を制御
-        for (const w of node.masterWidgets) {
-            if (showSet.has(w.name)) {
-                // 表示
-                if (w.inputEl) {
-                    w.inputEl.style.display = "block";
-                    w.inputEl.hidden = false;
-                    if (w.inputEl.parentNode && typeof w.inputEl.parentNode.className === "string" && w.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
-                        w.inputEl.parentNode.style.display = "block";
-                    }
-                }
-                if (w.element) {
-                    w.element.style.display = "block";
-                    w.element.hidden = false;
-                }
-            } else {
-                // 非表示
-                if (w.inputEl) {
-                    w.inputEl.style.display = "none";
-                    w.inputEl.hidden = true;
-                    if (w.inputEl.parentNode && typeof w.inputEl.parentNode.className === "string" && w.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
-                        w.inputEl.parentNode.style.display = "none";
-                    }
-                }
-                if (w.element) {
-                    w.element.style.display = "none";
-                    w.element.hidden = true;
-                }
-            }
-        }
-
-        // ウィジェット配列を更新（並べ替えのみで値を保持）
+        // ウィジェット配列を完全に置き換え（表示対象のみ）
         node.widgets = newWidgetOrder;
 
-        // ノードサイズの再計算と描画の強制
+        // マスターウィジェットのDOM要素を適切に制御
+        // 表示対象のウィジェットは表示、非表示対象はDOMから隠す
+        for (const masterWidget of node.masterWidgets) {
+            if (showSet.has(masterWidget.name)) {
+                // 表示対象：DOM要素を表示
+                if (masterWidget.inputEl) {
+                    masterWidget.inputEl.style.display = "block";
+                    masterWidget.inputEl.hidden = false;
+                    if (masterWidget.inputEl.parentNode && typeof masterWidget.inputEl.parentNode.className === "string" && masterWidget.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
+                        masterWidget.inputEl.parentNode.style.display = "block";
+                    }
+                }
+                if (masterWidget.element) {
+                    masterWidget.element.style.display = "block";
+                    masterWidget.element.hidden = false;
+                }
+            } else {
+                // 非表示対象：DOM要素を完全に隠す
+                if (masterWidget.inputEl) {
+                    masterWidget.inputEl.style.display = "none";
+                    masterWidget.inputEl.hidden = true;
+                    if (masterWidget.inputEl.parentNode && typeof masterWidget.inputEl.parentNode.className === "string" && masterWidget.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
+                        masterWidget.inputEl.parentNode.style.display = "none";
+                    }
+                }
+                if (masterWidget.element) {
+                    masterWidget.element.style.display = "none";
+                    masterWidget.element.hidden = true;
+                }
+            }
+        }
+
+        // ノードサイズの再計算と描画の強制（強化版）
         requestAnimationFrame(function() {
-            if (node.computeSize) {
-                const sz = node.computeSize();
-                if (sz[0] < node.size[0]) {
-                    sz[0] = node.size[0];
+            try {
+                // サイズキャッシュをリセット（ComfyUI内部）
+                node.size = null;  // サイズキャッシュをクリア
+                if (node._lastComputedSize) {
+                    delete node._lastComputedSize;
                 }
-                node.setSize(sz);
-                if (node.onResize) {
-                    node.onResize(sz);
+
+                // 強制的にサイズ再計算
+                if (node.computeSize) {
+                    const sz = node.computeSize();
+
+                    // 最小幅を保証
+                    if (sz[0] < node.size?.[0]) {
+                        sz[0] = node.size[0];
+                    }
+
+                    // サイズを確定
+                    node.setSize(sz);
+
+                    // リサイズコールバック実行
+                    if (node.onResize) {
+                        node.onResize(sz);
+                    }
                 }
+
+                // キャンバスに強制再描画を要求
                 if (app.graph) {
                     app.graph.setDirtyCanvas(true, true);
                 }
+            } catch (e) {
+                console.error("[LlamaCppClient] Size recalc error:", e);
             }
         });
 

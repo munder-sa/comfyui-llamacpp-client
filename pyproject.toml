@@ -37,7 +37,11 @@ dev = [
     "mypy>=1.0.0",
     "flake8>=6.0.0",
     "pytest>=7.0.0",
+    "pytest-cov>=4.0.0"
 ]
+
+[tool.pytest.ini_options]
+addopts = "--cov=utils --cov=tests --cov-report=term-missing"
 
 [project.urls]
 Homepage = "https://github.com/munder-sa/comfyui-llamacpp-client"
