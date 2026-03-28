@@ -118,11 +118,14 @@ for (const endpoint in endpointSpecificFields) {
 }
 
 function hideWidget(widget) {
-    // Save original type and computeSize if not saved
     if (!widget) return;
-    if (!widget.origType) widget.origType = widget.type;
-    if (!widget.origComputeSize && typeof widget.computeSize === "function") {
-        widget.origComputeSize = widget.computeSize;
+
+    // Only record original values once and mark hidden
+    if (!widget._llamaHidden) {
+        widget._llamaOrigType = widget.type;
+        // store computeSize if it exists, otherwise null
+        widget._llamaOrigComputeSize = typeof widget.computeSize === "function" ? widget.computeSize : null;
+        widget._llamaHidden = true;
     }
 
     // Mark as hidden in a ComfyUI-friendly way
@@ -339,10 +342,9 @@ function updateUI(node) {
                     const oldSize = Array.isArray(node.size) ? node.size : [0, 0];
                     const sz = node.computeSize();
 
-                    // 最小幅を保証（以前のサイズがあればそれを下限とする）
-                    if (oldSize && typeof oldSize[0] === "number" && sz[0] < oldSize[0]) {
-                        sz[0] = oldSize[0];
-                    }
+                    const MIN_WIDTH = 400;
+                    // 最小幅を保証（以前のサイズがあればそれを下限としつつ、十分な幅を確保）
+                    sz[0] = Math.max((sz && typeof sz[0] === "number") ? sz[0] : 0, MIN_WIDTH, (oldSize && typeof oldSize[0] === "number") ? oldSize[0] : 0);
 
                     node.setSize(sz);
 
