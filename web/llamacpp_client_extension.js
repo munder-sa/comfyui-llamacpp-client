@@ -397,22 +397,86 @@ function initializeWidgetValues(node) {
         "t_max_predict_ms": 0
     };
 
+    // Known numeric constraints to detect obvious corruption from index-shifted values
+    const constraints = {
+        "dry_base": { min: 1.0 },
+        "mirostat_tau": { min: 0.1 },
+        "mirostat_eta": { min: 0.001 },
+        "min_p": { min: 0.0, max: 1.0 },
+        "top_k": { min: 0, max: 10000 },
+        "dry_allowed_length": { min: 1 },
+        "xtc_threshold": { min: 0.0, max: 1.0 },
+        "xtc_probability": { min: 0.0, max: 1.0 }
+    };
+
+    function parseNumeric(value, isInt = false) {
+        if (typeof value === "number") return value;
+        if (typeof value === "string") {
+            // try JSON parse first (in case value is "40" or "40.0" or "null")
+            try {
+                const parsed = JSON.parse(value);
+                if (typeof parsed === "number") return isInt ? Math.trunc(parsed) : parsed;
+            } catch (e) {
+                // JSON.parse failed, fall back
+            }
+            const n = isInt ? parseInt(value, 10) : parseFloat(value);
+            if (!Number.isNaN(n)) return n;
+        }
+        return NaN;
+    }
+
     for (let i = 0; i < node.widgets.length; i++) {
         const w = node.widgets[i];
-        // Initialize widgets with properly typed values
+        if (!w) continue;
+
+        // 1) Initialize missing or empty values with defaults
         if (w.name in widgetDefaults) {
             const defaultVal = widgetDefaults[w.name];
             if (w.value === null || w.value === undefined || w.value === "" || w.value === "[]") {
                 w.value = defaultVal;
             }
         }
-        // Ensure JSON parameters are strings
+
+        // 2) Ensure JSON parameters remain strings
         if (["stop_sequences", "logit_bias", "samplers", "messages", "tools", "response_format",
              "input_extra", "documents", "lora", "response_fields", "image_data", "dry_sequence_breakers", "tokens"].includes(w.name)) {
             if (!w.value || w.value === "[]") {
                 w.value = "[]";
             } else if (typeof w.value !== "string") {
-                w.value = JSON.stringify(w.value);
+                try {
+                    w.value = JSON.stringify(w.value);
+                } catch (e) {
+                    w.value = "[]";
+                }
+            }
+            continue;
+        }
+
+        // 3) Type-correct numeric values and validate ranges for known constrained widgets
+        if (w.name in widgetDefaults && typeof widgetDefaults[w.name] === "number") {
+            const isInt = Number.isInteger(widgetDefaults[w.name]);
+            const parsed = parseNumeric(w.value, isInt);
+            if (!Number.isNaN(parsed)) {
+                // apply constraints if present
+                const c = constraints[w.name];
+                if (c) {
+                    if (typeof c.min === "number" && parsed < c.min) {
+                        console.warn(`[LlamaCppClient] widget ${w.name} value ${parsed} < min ${c.min}, resetting to default`);
+                        w.value = widgetDefaults[w.name];
+                        continue;
+                    }
+                    if (typeof c.max === "number" && parsed > c.max) {
+                        console.warn(`[LlamaCppClient] widget ${w.name} value ${parsed} > max ${c.max}, resetting to default`);
+                        w.value = widgetDefaults[w.name];
+                        continue;
+                    }
+                }
+                // if passes checks, store typed value
+                w.value = isInt ? Math.trunc(parsed) : parsed;
+            } else {
+                // parsing failed: likely index-shifted string value — reset to default
+                console.warn(`[LlamaCppClient] widget ${w.name} parsing failed for value=${w.value}, resetting to default`);
+                w.value = widgetDefaults[w.name];
             }
         }
     }
@@ -503,9 +567,50 @@ app.registerExtension({
             };
 
             const onConfigure = nodeType.prototype.onConfigure;
-            nodeType.prototype.onConfigure = function () {
+            // Preserve original onSerialize and add name-based serialization
+            const onSerialize = nodeType.prototype.onSerialize;
+            nodeType.prototype.onSerialize = function(o) {
+                // call original serializer if present
+                if (onSerialize) {
+                    try { onSerialize.apply(this, arguments); } catch (e) { console.warn("[LlamaCppClient] original onSerialize failed:", e); }
+                }
+
+                // ensure object exists
+                if (!o) o = {};
+
+                try {
+                    o._llamaWidgetValues = {};
+                    if (this.widgets) {
+                        for (const w of this.widgets) {
+                            if (w && w.name) {
+                                o._llamaWidgetValues[w.name] = w.value;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn("[LlamaCppClient] onSerialize error:", e);
+                }
+
+                return o;
+            };
+
+            // Enhanced onConfigure: restore by name if name-map exists, fallback to defaults via setupNode
+            nodeType.prototype.onConfigure = function (info) {
                 if (onConfigure) {
-                    onConfigure.apply(this, arguments);
+                    try { onConfigure.apply(this, arguments); } catch (e) { console.warn("[LlamaCppClient] original onConfigure failed:", e); }
+                }
+
+                // If serialized name->value map exists, restore values by name to avoid index mismatch
+                try {
+                    if (info && info._llamaWidgetValues && this.widgets) {
+                        for (const w of this.widgets) {
+                            if (w && w.name && (w.name in info._llamaWidgetValues)) {
+                                w.value = info._llamaWidgetValues[w.name];
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn("[LlamaCppClient] name-based restore failed:", e);
                 }
 
                 const that = this;
