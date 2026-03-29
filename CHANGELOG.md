@@ -1,3 +1,16 @@
+### 2026-03-29
+- Implemented full support for all previously unimplemented endpoints: completion, chat_completions, embeddings, tokenize, detokenize, apply_template, infill, reranking.
+  - Extended EndpointType Enum to 8 types (COMPLETION, CHAT_COMPLETION, EMBEDDING, TOKENIZE, DETOKENIZE, INFILL, RERANKING, APPLY_TEMPLATE).
+  - Separated validation and content-cleaning logic:
+    - Added _GENERATION_ENDPOINTS frozenset.
+    - Implemented _validate_response_structure() to return endpoint-specific validation results.
+    - Implemented _apply_content_cleaning() and applied it only to generation endpoints.
+    - Reworked _parse_and_validate() into a 4-phase flow (HTTP status → JSON parse → structure validation → content cleaning).
+  - Expanded llamacpp_client_node.py::_extract_response_text to handle endpoint-specific response formats (chat_completions, embeddings, tokenize, reranking, detokenize, apply_template, completion, infill).
+  - Updated all handle_* methods to use the correct EndpointType.
+  - Added 20+ unit tests and fixed mocks; test suite reports 109 passed (2 warnings).
+  - Minor UI adjustments in web/llamacpp_client_extension.js.
+
 ### 2026-03-28
 - Completed comprehensive test suite for core functionality.
   - Added `tests/test_image_utils.py` with 8 tests for image processing utilities.

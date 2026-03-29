@@ -43,6 +43,50 @@ class TestNode(unittest.TestCase):
         result = self.node._extract_response_text("plain text", "completion")
         self.assertEqual(result, "plain text")
 
+    def test_extract_response_text_embeddings(self):
+        response = {"data": [[0.1, 0.2], [0.3, 0.4]]}
+        result = self.node._extract_response_text(response, "embeddings")
+        self.assertEqual(result, "[[0.1, 0.2], [0.3, 0.4]]")
+
+    def test_extract_response_text_tokenize(self):
+        response = {"tokens": [1, 2, 3, 4, 5]}
+        result = self.node._extract_response_text(response, "tokenize")
+        self.assertEqual(result, "[1, 2, 3, 4, 5]")
+
+    def test_extract_response_text_reranking(self):
+        response = {"results": [{"index": 0, "score": 0.95}]}
+        result = self.node._extract_response_text(response, "reranking")
+        self.assertEqual(result, '[{"index": 0, "score": 0.95}]')
+
+    def test_extract_response_text_detokenize(self):
+        response = {"content": "hello world"}
+        result = self.node._extract_response_text(response, "detokenize")
+        self.assertEqual(result, "hello world")
+
+    def test_extract_response_text_apply_template(self):
+        response = {"content": "<system>prompt</system>"}
+        result = self.node._extract_response_text(response, "apply_template")
+        self.assertEqual(result, "<system>prompt</system>")
+
+    def test_extract_response_text_infill(self):
+        response = {"content": "completed code"}
+        result = self.node._extract_response_text(response, "infill")
+        self.assertEqual(result, "completed code")
+
+    def test_extract_response_text_with_text_field(self):
+        response = {"text": "fallback text"}
+        result = self.node._extract_response_text(response, "completion")
+        self.assertEqual(result, "fallback text")
+
+    def test_extract_response_text_empty_response(self):
+        response = {}
+        result = self.node._extract_response_text(response, "completion")
+        self.assertEqual(result, "")
+
+    def test_extract_response_text_non_dict_response(self):
+        result = self.node._extract_response_text(None, "completion")
+        self.assertEqual(result, "")
+
 
 if __name__ == "__main__":
     unittest.main()

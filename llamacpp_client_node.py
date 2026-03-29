@@ -1,13 +1,14 @@
+import json
 from typing import Any, Dict, Optional, Tuple, TypedDict
 
 import torch
 
 try:
-    from utils.llama_client import LlamaCppAPIClient
+    from utils.llama_client import ApiResponse, LlamaCppAPIClient
     from utils.logger import log_error, set_debug_mode
     from utils.param_utils import parse_json_param
 except ImportError:
-    from .utils.llama_client import LlamaCppAPIClient
+    from .utils.llama_client import ApiResponse, LlamaCppAPIClient
     from .utils.logger import log_error, set_debug_mode
     from .utils.param_utils import parse_json_param
 
@@ -331,15 +332,30 @@ class LlamaCppClientNode:
     CATEGORY = "AI/LlamaCpp"
 
     @staticmethod
-    def _extract_response_text(response: Any, endpoint: str) -> str:
-        """Extract response text from an API response payload."""
+    def _extract_response_text(response: Dict[str, Any], endpoint: str) -> str:
+        """Extract response text from an API response payload.
+
+        Handles all endpoint types:
+        - chat_completions: Extract from choices[0].message.content
+        - embeddings: Convert data array to JSON string
+        - tokenize: Convert tokens array to JSON string
+        - reranking: Convert results to JSON string
+        - completion, infill, detokenize, apply_template: Extract content or text field
+        """
         if isinstance(response, dict):
             if endpoint == "chat_completions":
                 choices = response.get("choices", [])
                 if choices and len(choices) > 0:
                     return choices[0].get("message", {}).get("content", "")
                 return ""
-            return response.get("content", response.get("text", ""))
+            elif endpoint == "embeddings":
+                return json.dumps(response.get("data", []))
+            elif endpoint == "tokenize":
+                return json.dumps(response.get("tokens", []))
+            elif endpoint == "reranking":
+                return json.dumps(response.get("results", []))
+            else:
+                return response.get("content", response.get("text", ""))
         return str(response) if response else ""
 
     @staticmethod
@@ -567,6 +583,8 @@ class LlamaCppClientNode:
                 "xtc_threshold": xtc_threshold,
             }
 
+            api_response: ApiResponse
+
             if endpoint == "completion":
                 params: CompletionParams = {
                     "prompt": prompt,
@@ -574,7 +592,11 @@ class LlamaCppClientNode:
                     "sampling": sampling_params,
                 }
                 kwargs = self._build_completion_kwargs(params)
-                response, raw_response, error, status_code = client.handle_completion(**kwargs)
+                api_response = client.handle_completion(**kwargs)
+                response = api_response.data
+                raw_response = api_response.raw
+                error = api_response.error
+                status_code = api_response.status_code
 
             elif endpoint == "chat_completions":
                 params: ChatParams = {
@@ -594,13 +616,12 @@ class LlamaCppClientNode:
                     "sampling": sampling_params,
                 }
                 kwargs = self._build_chat_kwargs(params)
-                (
-                    response,
-                    raw_response,
-                    error,
-                    status_code,
-                    metadata_list,
-                ) = client.handle_chat_completions(**kwargs)
+                api_response = client.handle_chat_completions(**kwargs)
+                response = api_response.data
+                raw_response = api_response.raw
+                error = api_response.error
+                status_code = api_response.status_code
+                metadata_list = api_response.metadata
 
             elif endpoint == "embeddings":
                 kwargs = {
@@ -608,7 +629,11 @@ class LlamaCppClientNode:
                     "model": model,
                     "encoding_format": encoding_format,
                 }
-                response, raw_response, error, status_code = client.handle_embeddings(**kwargs)
+                api_response = client.handle_embeddings(**kwargs)
+                response = api_response.data
+                raw_response = api_response.raw
+                error = api_response.error
+                status_code = api_response.status_code
 
             elif endpoint == "tokenize":
                 kwargs = {
@@ -617,19 +642,31 @@ class LlamaCppClientNode:
                     "parse_special": parse_special,
                     "with_pieces": with_pieces,
                 }
-                response, raw_response, error, status_code = client.handle_tokenize(**kwargs)
+                api_response = client.handle_tokenize(**kwargs)
+                response = api_response.data
+                raw_response = api_response.raw
+                error = api_response.error
+                status_code = api_response.status_code
 
             elif endpoint == "detokenize":
                 kwargs = {
                     "tokens": tokens,
                 }
-                response, raw_response, error, status_code = client.handle_detokenize(**kwargs)
+                api_response = client.handle_detokenize(**kwargs)
+                response = api_response.data
+                raw_response = api_response.raw
+                error = api_response.error
+                status_code = api_response.status_code
 
             elif endpoint == "apply_template":
                 kwargs = {
                     "messages": messages,
                 }
-                response, raw_response, error, status_code = client.handle_apply_template(**kwargs)
+                api_response = client.handle_apply_template(**kwargs)
+                response = api_response.data
+                raw_response = api_response.raw
+                error = api_response.error
+                status_code = api_response.status_code
 
             elif endpoint == "infill":
                 params: InfillParams = {
@@ -641,7 +678,11 @@ class LlamaCppClientNode:
                     "sampling": sampling_params,
                 }
                 kwargs = self._build_infill_kwargs(params)
-                response, raw_response, error, status_code = client.handle_infill(**kwargs)
+                api_response = client.handle_infill(**kwargs)
+                response = api_response.data
+                raw_response = api_response.raw
+                error = api_response.error
+                status_code = api_response.status_code
 
             elif endpoint == "reranking":
                 params: RerankingParams = {
@@ -656,7 +697,11 @@ class LlamaCppClientNode:
                     "documents": parse_json_param(params["documents"], []),
                     "top_n": params["top_n"],
                 }
-                response, raw_response, error, status_code = client.handle_reranking(**kwargs)
+                api_response = client.handle_reranking(**kwargs)
+                response = api_response.data
+                raw_response = api_response.raw
+                error = api_response.error
+                status_code = api_response.status_code
 
             response_text = self._extract_response_text(response, endpoint)
 

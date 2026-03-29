@@ -247,6 +247,21 @@ function isConvertedToInput(node, widgetName) {
     return false;
 }
 
+function removeInputLink(node, input) {
+    if (!node || !input || !app.graph) return false;
+
+    const linkId = Array.isArray(input.link) ? input.link[0] : input.link;
+    if (linkId == null) return false;
+
+    try {
+        app.graph.removeLink(linkId);
+        return true;
+    } catch (e) {
+        console.warn("[LlamaCppClient] removeInputLink failed:", e);
+        return false;
+    }
+}
+
 function updateUI(node) {
     try {
         if (!node.masterWidgets || !node.widgets) {
@@ -566,7 +581,7 @@ function setupNode(node) {
         }
     }
 
-    // 接続状態の変更を監視 (images ピン用)
+    // 接続状態の変更を監視 (全入力ピン)
     if (!node._llamaConnWrapped) {
         const onConnectionsChange = node.onConnectionsChange;
         node.onConnectionsChange = function (type, index, connected, link_info) {
@@ -576,19 +591,10 @@ function setupNode(node) {
 
             // type === 1 (LiteGraph.INPUT)
             if (type === 1) {
-                let isImagePin = false;
-                if (this.inputs && this.inputs[index]) {
-                    if (this.inputs[index].name === "images" || this.inputs[index].type === "IMAGE") {
-                        isImagePin = true;
-                    }
-                }
-
-                if (isImagePin) {
-                    const that = this;
-                    setTimeout(function() {
-                        updateUI(that);
-                    }, 200);
-                }
+                const that = this;
+                setTimeout(function() {
+                    updateUI(that);
+                }, 200);
             }
         };
         node._llamaConnWrapped = true;
