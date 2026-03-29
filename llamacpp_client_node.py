@@ -2,25 +2,11 @@ import json
 from typing import Any, Dict, Tuple
 
 try:
-    from utils.image_utils import (
-        DEFAULT_JPEG_QUALITY,
-        build_vision_content,
-        detect_image_format,
-        extract_image_metadata,
-        extract_tensor_metadata,
-    )
     from utils.llama_client import LlamaCppAPIClient
-    from utils.logger import log_debug, log_error, set_debug_mode
+    from utils.logger import log_error, set_debug_mode
 except ImportError:
-    from .utils.image_utils import (
-        DEFAULT_JPEG_QUALITY,
-        build_vision_content,
-        detect_image_format,
-        extract_image_metadata,
-        extract_tensor_metadata,
-    )
     from .utils.llama_client import LlamaCppAPIClient
-    from .utils.logger import log_debug, log_error, set_debug_mode
+    from .utils.logger import log_error, set_debug_mode
 
 
 class LlamaCppClientNode:
@@ -56,6 +42,25 @@ class LlamaCppClientNode:
                 ),
             },
             "optional": {
+                # ========== 先頭に表示したい主要パラメータ ==========
+                # completion / chat 共通の主要入力
+                "prompt": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "tooltip": "The prompt text for completion/chat",
+                    },
+                ),
+                # chat completions で使用する主要入力
+                "system_message": (
+                    "STRING",
+                    {"default": "", "multiline": True, "tooltip": "System message for chat"},
+                ),
+                "user_message": (
+                    "STRING",
+                    {"default": "", "multiline": True, "tooltip": "User message for chat"},
+                ),
                 # ========== 共通パラメータ（先頭）==========
                 # 温度制御
                 "temperature": (
@@ -157,7 +162,9 @@ class LlamaCppClientNode:
                 "samplers": (
                     "STRING",
                     {
-                        "default": '["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]',
+                        "default": (
+                            '["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]'
+                        ),
                         "multiline": False,
                     },
                 ),
@@ -165,14 +172,6 @@ class LlamaCppClientNode:
                 "lora": ("STRING", {"default": "[]", "multiline": True}),
                 # エンドポイント固有パラメータ（共通パラメータの後）
                 # completion/infill 固有
-                "prompt": (
-                    "STRING",
-                    {
-                        "default": "",
-                        "multiline": True,
-                        "tooltip": "The prompt text for completion/chat",
-                    },
-                ),
                 "n_predict": (
                     "INT",
                     {
@@ -185,14 +184,6 @@ class LlamaCppClientNode:
                 "json_schema": ("STRING", {"default": "", "multiline": True}),
                 "response_fields": ("STRING", {"default": "[]", "multiline": False}),
                 # chat_completions 固有
-                "system_message": (
-                    "STRING",
-                    {"default": "", "multiline": True, "tooltip": "System message for chat"},
-                ),
-                "user_message": (
-                    "STRING",
-                    {"default": "", "multiline": True, "tooltip": "User message for chat"},
-                ),
                 "assistant_message": ("STRING", {"default": "", "multiline": True}),
                 "messages": ("STRING", {"default": "[]", "multiline": True}),
                 "max_tokens": ("INT", {"default": -1, "min": -1, "max": 1000000}),
@@ -299,7 +290,7 @@ class LlamaCppClientNode:
         logit_bias: str = "[]",
         cache_prompt: bool = True,
         id_slot: int = -1,
-        samplers: str = '["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]',
+        samplers: str = ('["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]'),
         t_max_predict_ms: int = 0,
         messages: str = "[]",
         assistant_message: str = "",
