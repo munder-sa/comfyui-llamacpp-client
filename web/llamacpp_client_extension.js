@@ -130,8 +130,9 @@ function hideWidget(widget) {
 
     // Mark as hidden in a ComfyUI-friendly way
     try {
+        widget.hidden = true;
         widget.type = "hidden";
-        widget.computeSize = () => [0, -4];
+        widget.computeSize = () => [0, 0];
     } catch (e) {
         console.warn("[LlamaCppClient] hideWidget failed:", e);
     }
@@ -141,13 +142,18 @@ function hideWidget(widget) {
         if (widget.inputEl) {
             widget.inputEl.style.display = "none";
             widget.inputEl.hidden = true;
-            if (widget.inputEl.parentNode && typeof widget.inputEl.parentNode.className === "string" && widget.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
+            if (widget.inputEl.parentNode) {
                 widget.inputEl.parentNode.style.display = "none";
+                widget.inputEl.parentNode.hidden = true;
             }
         }
         if (widget.element) {
             widget.element.style.display = "none";
             widget.element.hidden = true;
+            if (widget.element.parentNode) {
+                widget.element.parentNode.style.display = "none";
+                widget.element.parentNode.hidden = true;
+            }
         }
     } catch (e) {
         console.warn("[LlamaCppClient] hideWidget DOM error:", e);
@@ -156,14 +162,37 @@ function hideWidget(widget) {
 
 function showWidget(widget) {
     if (!widget) return;
-    // Restore type and computeSize if saved
+    // Restore type and computeSize using the _llama saved originals when present.
     try {
-        if (widget.origType) {
+        // Restore saved type (prefer _llamaOrigType). If not present, fall back to origType.
+        if (widget._llamaOrigType !== undefined) {
+            widget.type = widget._llamaOrigType;
+            delete widget._llamaOrigType;
+        } else if (widget.origType !== undefined) {
             widget.type = widget.origType;
+            // keep origType as updateUI may rely on it
         }
-        if (widget.origComputeSize) {
-            widget.computeSize = widget.origComputeSize;
-            delete widget.origComputeSize;
+
+        // Restore computeSize. If the original was null, delete to fall back to prototype.
+        if (widget._llamaOrigComputeSize !== undefined) {
+            if (widget._llamaOrigComputeSize === null) {
+                try { delete widget.computeSize; } catch (e) { widget.computeSize = undefined; }
+            } else {
+                widget.computeSize = widget._llamaOrigComputeSize;
+            }
+            delete widget._llamaOrigComputeSize;
+        } else if (widget.origComputeSize !== undefined) {
+            if (widget.origComputeSize === null) {
+                try { delete widget.computeSize; } catch (e) { widget.computeSize = undefined; }
+            } else {
+                widget.computeSize = widget.origComputeSize;
+            }
+        }
+
+        // Clear hidden flag
+        widget.hidden = false;
+        if (widget._llamaHidden) {
+            widget._llamaHidden = false;
         }
     } catch (e) {
         console.warn("[LlamaCppClient] showWidget failed:", e);
@@ -174,13 +203,18 @@ function showWidget(widget) {
         if (widget.inputEl) {
             widget.inputEl.style.display = "";
             widget.inputEl.hidden = false;
-            if (widget.inputEl.parentNode && typeof widget.inputEl.parentNode.className === "string" && widget.inputEl.parentNode.className.indexOf("comfy-multiline") !== -1) {
-                widget.inputEl.parentNode.style.display = "block";
+            if (widget.inputEl.parentNode) {
+                widget.inputEl.parentNode.style.display = "";
+                widget.inputEl.parentNode.hidden = false;
             }
         }
         if (widget.element) {
             widget.element.style.display = "";
             widget.element.hidden = false;
+            if (widget.element.parentNode) {
+                widget.element.parentNode.style.display = "";
+                widget.element.parentNode.hidden = false;
+            }
         }
     } catch (e) {
         console.warn("[LlamaCppClient] showWidget DOM error:", e);
@@ -330,8 +364,10 @@ function updateUI(node) {
             }
         }
 
-        // ノードサイズの再計算と描画の強制（強化版）
-        requestAnimationFrame(function() {
+        // ノードサイズの再計算と描画の強制（2段階で実施し、表示/非表示切替直後の重なりを抑止）
+        const MIN_WIDTH = 400;
+
+        const recalcLayout = function() {
             try {
                 // 安全なサイズ再計算（node.size を null にしない）
                 if (node._lastComputedSize) {
@@ -342,9 +378,12 @@ function updateUI(node) {
                     const oldSize = Array.isArray(node.size) ? node.size : [0, 0];
                     const sz = node.computeSize();
 
-                    const MIN_WIDTH = 400;
                     // 最小幅を保証（以前のサイズがあればそれを下限としつつ、十分な幅を確保）
-                    sz[0] = Math.max((sz && typeof sz[0] === "number") ? sz[0] : 0, MIN_WIDTH, (oldSize && typeof oldSize[0] === "number") ? oldSize[0] : 0);
+                    sz[0] = Math.max(
+                        (sz && typeof sz[0] === "number") ? sz[0] : 0,
+                        MIN_WIDTH,
+                        (oldSize && typeof oldSize[0] === "number") ? oldSize[0] : 0
+                    );
 
                     node.setSize(sz);
 
@@ -360,6 +399,15 @@ function updateUI(node) {
             } catch (e) {
                 console.error("[LlamaCppClient] Size recalc error:", e);
             }
+        };
+
+        requestAnimationFrame(function() {
+            recalcLayout();
+            requestAnimationFrame(function() {
+                recalcLayout();
+                setTimeout(recalcLayout, 50);
+                setTimeout(recalcLayout, 200);
+            });
         });
 
     } catch (e) {

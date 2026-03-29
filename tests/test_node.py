@@ -26,7 +26,8 @@ class TestNode(unittest.TestCase):
     def test_input_types(self):
         input_types = self.node.INPUT_TYPES()
         self.assertIsInstance(input_types, dict)
-        self.assertIn("inputs", input_types)
+        self.assertIn("required", input_types)
+        self.assertIn("optional", input_types)
 
 
 if __name__ == "__main__":
