@@ -6,6 +6,7 @@ Covers:
 - map_parameters(): key mapping, missing keys, None value skipping
 - safe_convert_to_int(): normal conversion, float string, invalid input, min/max clipping
 - safe_convert_to_float(): normal conversion, "randomize" sentinel, min/max clipping
+- parse_json_param(): valid JSON parsing and fallback behavior
 """
 
 import os
@@ -20,6 +21,7 @@ from utils.param_utils import (  # Fixed module-level import  # noqa: E402
     JSON_PARAMETERS,
     clean_params,
     map_parameters,
+    parse_json_param,
     safe_convert_to_float,
     safe_convert_to_int,
 )
@@ -98,7 +100,6 @@ class TestCleanParams(unittest.TestCase):
 
     def test_image_data_newline_stripped(self):
         """image_data string should have newlines removed before JSON parsing."""
-        # Build a JSON array with embedded newlines
         raw = '[\n{"data": "abc"}\n]'
         params = {"image_data": raw}
         result = clean_params(params)
@@ -141,6 +142,20 @@ class TestCleanParams(unittest.TestCase):
         result = clean_params(params)
         self.assertIsInstance(result["tokens"], list)
         self.assertEqual(result["tokens"], [1, 2, 3])
+
+
+class TestParseJsonParam(unittest.TestCase):
+    """Tests for parse_json_param()."""
+
+    def test_valid_json_parsed(self):
+        self.assertEqual(parse_json_param("[1, 2, 3]", []), [1, 2, 3])
+
+    def test_empty_string_returns_default(self):
+        self.assertEqual(parse_json_param("", []), [])
+
+    def test_invalid_json_returns_default(self):
+        default = {"fallback": True}
+        self.assertEqual(parse_json_param("{invalid", default), default)
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +225,6 @@ class TestMapParameters(unittest.TestCase):
             "seed": 99,
         }
         result = map_parameters(kwargs, COMMON_COMPLETION_PARAMS)
-        # COMMON_COMPLETION_PARAMS maps these 1-to-1
         self.assertEqual(result["n_predict"], 200)
         self.assertEqual(result["temperature"], 0.7)
         self.assertEqual(result["seed"], 99)

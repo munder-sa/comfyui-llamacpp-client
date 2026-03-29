@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 try:
     from logger import log_debug, log_error
@@ -79,6 +79,17 @@ CHAT_COMPLETION_PARAMS = {
 }
 
 
+def parse_json_param(value: str, default: Any) -> Any:
+    """Parse a JSON string parameter with a fallback value."""
+    if not isinstance(value, str) or not value.strip():
+        return default
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError as exc:
+        log_error(f"Error parsing JSON parameter: {str(exc)}", exc)
+        return default
+
+
 def safe_convert_to_int(
     value: Any, default: int = 0, min_val: Optional[int] = None, max_val: Optional[int] = None
 ) -> int:
@@ -138,10 +149,10 @@ def safe_convert_to_float(
 
 def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
     """Remove None values and convert string parameters to appropriate types.
-    
+
     Args:
         params: Dictionary of parameters to clean
-        
+
     Returns:
         Dictionary with cleaned parameters
     """
@@ -166,8 +177,9 @@ def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
                     parsed_value: Union[list, dict] = json.loads(value)
                     cleaned[key] = parsed_value
                     if key == "image_data":
+                        result_type = type(parsed_value)
                         log_debug(
-                            f"Successfully parsed '{key}' as JSON. Result type: {type(parsed_value)}"
+                            f"Successfully parsed '{key}' as JSON. Result type: {result_type}"
                         )
                 except json.JSONDecodeError as e:
                     log_error(f"Error parsing JSON for parameter '{key}': {str(e)}", e)
@@ -193,11 +205,11 @@ def clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
 
 def map_parameters(kwargs: Dict[str, Any], mapping: Dict[str, str]) -> Dict[str, Any]:
     """Map UI kwargs to API parameters based on mapping.
-    
+
     Args:
         kwargs: Dictionary of UI parameters
         mapping: Dictionary mapping UI parameter names to API parameter names
-        
+
     Returns:
         Dictionary of mapped API parameters
     """

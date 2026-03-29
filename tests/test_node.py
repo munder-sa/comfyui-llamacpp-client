@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch  # Removed unused MagicMock
+from unittest.mock import patch
 
 from llamacpp_client_node import LlamaCppClientNode
 
@@ -28,6 +28,20 @@ class TestNode(unittest.TestCase):
         self.assertIsInstance(input_types, dict)
         self.assertIn("required", input_types)
         self.assertIn("optional", input_types)
+
+    def test_extract_response_text_completion(self):
+        response = {"content": "hello"}
+        result = self.node._extract_response_text(response, "completion")
+        self.assertEqual(result, "hello")
+
+    def test_extract_response_text_chat(self):
+        response = {"choices": [{"message": {"content": "world"}}]}
+        result = self.node._extract_response_text(response, "chat_completions")
+        self.assertEqual(result, "world")
+
+    def test_extract_response_text_scalar(self):
+        result = self.node._extract_response_text("plain text", "completion")
+        self.assertEqual(result, "plain text")
 
 
 if __name__ == "__main__":
