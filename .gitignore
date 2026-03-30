@@ -83,3 +83,8 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *,cover
+
+# Project management
+.agents/
+PLAN.md
+REVISION_HISTORY.md
