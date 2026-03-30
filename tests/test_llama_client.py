@@ -486,7 +486,6 @@ class TestLlamaClient(unittest.TestCase):
         self.assertEqual(mock_session.post.call_count, 3)
 
 
-
 class TestMoEDetection(unittest.TestCase):
     """Tests for get_health(), get_props(), and is_moe_model() methods."""
 
@@ -528,6 +527,7 @@ class TestMoEDetection(unittest.TestCase):
     def test_get_health_connection_failure(self, mock_get_session):
         """get_health does not raise on connection error; returns error dict."""
         import requests as req
+
         mock_session = MagicMock()
         mock_session.get.side_effect = req.exceptions.ConnectionError("refused")
         mock_get_session.return_value = mock_session
@@ -558,7 +558,8 @@ class TestMoEDetection(unittest.TestCase):
     def test_is_moe_model_via_expert_count_key(self):
         """Structural check: expert_count key in props triggers True."""
         with patch.object(
-            self.client, "get_props",
+            self.client,
+            "get_props",
             return_value={"params": {"expert_count": 64, "n_layers": 32}},
         ):
             self.assertTrue(self.client.is_moe_model())
@@ -566,19 +567,17 @@ class TestMoEDetection(unittest.TestCase):
     def test_is_moe_model_via_nested_expert_count(self):
         """Recursive structural check: expert_count in deeply nested dict triggers True."""
         with patch.object(
-            self.client, "get_props",
-            return_value={
-                "default_generation_settings": {
-                    "model_info": {"expert_count": 8}
-                }
-            },
+            self.client,
+            "get_props",
+            return_value={"default_generation_settings": {"model_info": {"expert_count": 8}}},
         ):
             self.assertTrue(self.client.is_moe_model())
 
     def test_is_moe_model_via_deepseek_keyword(self):
         """Keyword check: 'deepseek' in model_path triggers True."""
         with patch.object(
-            self.client, "get_props",
+            self.client,
+            "get_props",
             return_value={"model_path": "/models/DeepSeek-V3.gguf"},
         ):
             self.assertTrue(self.client.is_moe_model())
@@ -586,7 +585,8 @@ class TestMoEDetection(unittest.TestCase):
     def test_is_moe_model_via_mixtral_keyword(self):
         """Keyword check: 'mixtral' architecture value triggers True."""
         with patch.object(
-            self.client, "get_props",
+            self.client,
+            "get_props",
             return_value={"architecture": "mixtral"},
         ):
             self.assertTrue(self.client.is_moe_model())
@@ -594,7 +594,8 @@ class TestMoEDetection(unittest.TestCase):
     def test_is_moe_model_not_detected_for_dense_model(self):
         """Dense model props (no MoE signals) must return False."""
         with patch.object(
-            self.client, "get_props",
+            self.client,
+            "get_props",
             return_value={"model": "llama3", "n_layers": 32, "n_heads": 32},
         ):
             self.assertFalse(self.client.is_moe_model())

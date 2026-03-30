@@ -40,7 +40,7 @@ def log_info(message: str):
 
 
 def _safe_format_data(data, max_str_len=100) -> str:
-    """Helper to safely format large dictionaries/lists so base64 strings don't flood the terminal."""
+    """Helper to safely format large configs so base64 strings don't flood the terminal."""
     if isinstance(data, dict):
         safe_dict = {}
         for k, v in data.items():
@@ -53,7 +53,7 @@ def _safe_format_data(data, max_str_len=100) -> str:
                 safe_dict[k] = v
         try:
             return json.dumps(safe_dict, indent=2)
-        except:
+        except Exception:
             return str(safe_dict)
 
     elif isinstance(data, list):
@@ -67,7 +67,7 @@ def _safe_format_data(data, max_str_len=100) -> str:
                 safe_list.append(v)
         try:
             return json.dumps(safe_list, indent=2)
-        except:
+        except Exception:
             return str(safe_list)
 
     elif isinstance(data, str) and len(data) > max_str_len:

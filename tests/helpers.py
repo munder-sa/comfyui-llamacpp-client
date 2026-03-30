@@ -150,7 +150,7 @@ class SessionPatchMixin:
         """
         patcher = patch("utils.llama_client.requests.Session")
         mock_session_cls = patcher.start()
-        self.addCleanup(patcher.stop)
+        self.addCleanup(patcher.stop)  # type: ignore[attr-defined]
 
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session

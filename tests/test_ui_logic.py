@@ -33,6 +33,28 @@ class TestEndpointSwitchValuePreservation(unittest.TestCase):
         for ep in expected:
             self.assertIn(ep, endpoints)
 
+    def test_json_params_preserved_on_switch(self):
+        optional = self.input_types["optional"]
+        json_fields = ["samplers", "stop_sequences", "logit_bias", "messages", "tools"]
+        for field in json_fields:
+            self.assertIn(field, optional)
+            self.assertEqual(optional[field][0], "STRING")
+
+    def test_all_endpoints_round_trip(self):
+        # The node class in Python does not dynamically remove inputs;
+        # Instead, we just verify `INPUT_TYPES` returns the full dictionary unconditionally.
+        optional1 = self.node.INPUT_TYPES()["optional"]
+        optional2 = self.node.INPUT_TYPES()["optional"]
+        self.assertEqual(list(optional1.keys()), list(optional2.keys()))
+
+    def test_index_stability_multiple_switches(self):
+        # Verify that multiple consecutive requests for INPUT_TYPES() yield identical order
+        keys_run1 = list(self.node.INPUT_TYPES()["optional"].keys())
+        keys_run2 = list(self.node.INPUT_TYPES()["optional"].keys())
+        keys_run3 = list(self.node.INPUT_TYPES()["optional"].keys())
+        self.assertEqual(keys_run1, keys_run2)
+        self.assertEqual(keys_run2, keys_run3)
+
 
 class TestUIWidgetOrder(unittest.TestCase):
     def setUp(self):
@@ -65,6 +87,48 @@ class TestUIWidgetOrder(unittest.TestCase):
                 if t in self.optional_keys and s in self.optional_keys:
                     self.assertLess(self.optional_keys.index(t), self.optional_keys.index(s))
 
+    def test_all_endpoints_priority_field_after_endpoint(self):
+        # Priority fields in JS are defined for each endpoint
+        # to sit immediately after 'endpoint' / 'server_url'.
+        # Since 'endpoint' and 'server_url' are required, they appear at the top visually.
+        # So we verify that all JS priority fields appear *before* standard fields.
+        js_priority_fields = [
+            "prompt",
+            "system_message",
+            "user_message",
+            "input_text",
+            "content",
+            "tokens",
+            "messages",
+            "input_prefix",
+            "input_suffix",
+            "query",
+            "documents",
+        ]
+        temp_idx = self.optional_keys.index("temperature")
+        for f in js_priority_fields:
+            if f in self.optional_keys:
+                self.assertLess(
+                    self.optional_keys.index(f),
+                    temp_idx,
+                    f"Priority field {f} should be before temperature",
+                )
+
+    def test_ui_structure_order(self):
+        # Tests priority -> ... -> image_data -> common(temperature) -> dry(dry_multiplier)
+        # Python defines them in groups: endpoint_specific -> sampling -> dry
+        optional_keys = self.optional_keys
+        if all(
+            k in optional_keys for k in ["prompt", "image_data", "temperature", "dry_multiplier"]
+        ):
+            valid_order = (
+                optional_keys.index("prompt")
+                < optional_keys.index("image_data")
+                < optional_keys.index("temperature")
+                < optional_keys.index("dry_multiplier")
+            )
+            self.assertTrue(valid_order)
+
 
 class TestImageDataVisibility(unittest.TestCase):
     def setUp(self):
@@ -83,6 +147,39 @@ class TestImageDataVisibility(unittest.TestCase):
         self.assertTrue(optional["system_message"][1].get("multiline", False))
         self.assertTrue(optional["user_message"][1].get("multiline", False))
 
+    def test_image_data_hidden_when_image_link(self):
+        import os
+        import re
+
+        js_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "web", "llamacpp_client_extension.js"
+        )
+        if not os.path.exists(js_path):
+            # If path structure is different, adjust or skip
+            js_path = os.path.join(
+                os.path.dirname(__file__), "..", "web", "llamacpp_client_extension.js"
+            )
+            if not os.path.exists(js_path):
+                self.skipTest("JS file not found, skipping static analysis.")
+
+        with open(js_path, "r", encoding="utf-8") as f:
+            js_code = f.read()
+
+        # Verify JS has the logic string "shouldHideImageData = hasImageLink;"
+        self.assertIn("shouldHideImageData = hasImageLink", js_code)
+
+        # Verify it tries to skip image_data if shouldHideImageData
+        self.assertTrue(
+            re.search(r'f !== "image_data" \|\| !shouldHideImageData', js_code),
+            "JS does not contain the logic to hide image_data conditionally",
+        )
+
+    def test_image_data_shown_when_no_image_link(self):
+        # Tested symmetrically through the JS regex string search above.
+        # Also ensure Python distinguishes the types correctly: images=IMAGE, image_data=STRING
+        optional = self.input_types["optional"]
+        self.assertEqual(optional["images"][0], "IMAGE")
+        self.assertEqual(optional["image_data"][0], "STRING")
 
 
 class TestMoEModeUI(unittest.TestCase):

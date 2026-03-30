@@ -1,4 +1,15 @@
-### 2026-03-30 — Phase 3: MoE Model Optimization
+## [1.0.2] - 2026-03-30
+
+### 2026-03-30 — Phase 2 & 3: Optimization and CI/CD
+
+**CI/CD & Code Quality**
+- GitHub Actions CI/CD workflows added (`ci.yml`, `release.yml`).
+- Complete strict typing compliance (`typing` + `mypy`).
+- Flake8 checks, `black` and `isort` formatting applied.
+
+**Testing (+18 tests → 139 total, 0 lint errors)**
+- Complete mock-based testing suite for `utils` and `llamacpp_client_node`.
+- Expanded UI parameter logic testing for dynamic widget priority toggling.
 
 **Bug Fixes**
 - Fixed `dry_sequence_breakers` not being included in API requests. The field was defined in `SamplingParams` TypedDict but was missing from `_build_sampling_kwargs()`, meaning it was silently dropped on every request.

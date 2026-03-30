@@ -342,7 +342,11 @@ class LlamaCppAPIClient:
         try:
             session = self._get_session()
             response = session.get(url, headers=headers, timeout=5)
-            return response.json() if response.status_code == 200 else {"status": "error", "code": response.status_code}
+            return (
+                response.json()
+                if response.status_code == 200
+                else {"status": "error", "code": response.status_code}
+            )
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
@@ -403,7 +407,6 @@ class LlamaCppAPIClient:
                 return True
 
         return False
-
 
     def handle_completion(self, prompt: str, **kwargs) -> ApiResponse:
         """Handle /completion endpoint."""

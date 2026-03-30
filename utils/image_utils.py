@@ -2,8 +2,7 @@ import base64
 import gc
 import io
 import json
-import os
-from typing import Optional, Union, Dict, Any, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 from PIL import Image
@@ -14,20 +13,20 @@ except ImportError:
     torch = None
 
 try:
-    from logger import log_debug, log_error, log_info
+    from logger import log_debug, log_error
 except ImportError:
-    from .logger import log_debug, log_error, log_info
+    from .logger import log_debug, log_error
 
 # Image format magic numbers (file signatures)
 IMAGE_MAGIC_NUMBERS = {
-    b'\xFF\xD8\xFF': 'JPEG',
-    b'\x89PNG\r\n\x1a\n': 'PNG',
-    b'GIF87a': 'GIF',
-    b'GIF89a': 'GIF',
-    b'RIFF....WEBP': 'WEBP',
-    b'BM': 'BMP',
-    b'II*\x00': 'TIFF',
-    b'MM\x00*': 'TIFF',
+    b"\xff\xd8\xff": "JPEG",
+    b"\x89PNG\r\n\x1a\n": "PNG",
+    b"GIF87a": "GIF",
+    b"GIF89a": "GIF",
+    b"RIFF....WEBP": "WEBP",
+    b"BM": "BMP",
+    b"II*\x00": "TIFF",
+    b"MM\x00*": "TIFF",
 }
 
 # Performance optimization constants
@@ -38,10 +37,10 @@ MIN_IMAGE_DIMENSION = 512  # Minimum dimension to maintain reasonable quality
 
 def detect_image_format(data: Union[bytes, str]) -> Optional[str]:
     """Detect image format from magic numbers (file signatures).
-    
+
     Args:
         data: Image data as bytes or base64 string
-        
+
     Returns:
         Image format string (JPEG, PNG, GIF, WEBP, BMP, TIFF) or None if undetectable
     """
@@ -50,26 +49,26 @@ def detect_image_format(data: Union[bytes, str]) -> Optional[str]:
             data = base64.b64decode(data)
         except Exception:
             return None
-    
+
     if not isinstance(data, bytes) or len(data) < 4:
         return None
-    
+
     for magic, fmt in IMAGE_MAGIC_NUMBERS.items():
         if isinstance(magic, bytes) and data.startswith(magic):
             return fmt
         elif isinstance(magic, str):
-            if data.startswith(magic.encode('utf-8')):
+            if data.startswith(magic.encode("utf-8")):
                 return fmt
-    
+
     return None
 
 
 def extract_image_metadata(image_path: str) -> Dict[str, Any]:
     """Extract metadata from an image file.
-    
+
     Args:
         image_path: Path to the image file
-        
+
     Returns:
         Dictionary containing image metadata
     """
@@ -82,7 +81,7 @@ def extract_image_metadata(image_path: str) -> Dict[str, Any]:
                 "width": img.width,
                 "height": img.height,
                 "aspect_ratio": img.width / img.height if img.height > 0 else 0,
-                "has_transparency": img.mode in ('RGBA', 'LA', 'P')
+                "has_transparency": img.mode in ("RGBA", "LA", "P"),
             }
     except Exception as e:
         log_error(f"Error extracting image metadata: {e}", e)
@@ -91,11 +90,11 @@ def extract_image_metadata(image_path: str) -> Dict[str, Any]:
 
 def extract_tensor_metadata(tensor_image, batch_index: Optional[int] = None) -> Dict[str, Any]:
     """Extract metadata from a ComfyUI IMAGE tensor.
-    
+
     Args:
         tensor_image: PIL Image or torch.Tensor or numpy array
         batch_index: Optional batch index if tensor_image is a batch
-        
+
     Returns:
         Dictionary containing image metadata
     """
@@ -115,8 +114,8 @@ def extract_tensor_metadata(tensor_image, batch_index: Optional[int] = None) -> 
             "width": img.width,
             "height": img.height,
             "aspect_ratio": img.width / img.height if img.height > 0 else 0,
-            "has_transparency": img.mode in ('RGBA', 'LA', 'P'),
-            "batch_index": batch_index
+            "has_transparency": img.mode in ("RGBA", "LA", "P"),
+            "batch_index": batch_index,
         }
     except Exception as e:
         log_error(f"Error extracting tensor metadata: {e}", e)
@@ -125,20 +124,20 @@ def extract_tensor_metadata(tensor_image, batch_index: Optional[int] = None) -> 
 
 def validate_image_data(image_data: str) -> bool:
     """Validate Base64 image data.
-    
+
     Args:
         image_data: Base64 encoded image data
-        
+
     Returns:
         True if valid image data, False otherwise
     """
     if not image_data or not isinstance(image_data, str):
         return False
-    
+
     # Check for data URI format
     if image_data.startswith("data:image"):
         return True
-    
+
     # Check if it's valid base64
     try:
         decoded = base64.b64decode(image_data)
@@ -155,14 +154,14 @@ def tensor_to_base64_data_uri(
     output_format: str = "jpeg",
 ) -> str:
     """Convert ComfyUI image tensor to Base64 Data URI with performance optimizations.
-    
+
     Args:
         tensor_image: PIL Image or torch.Tensor or numpy array
         jpeg_quality: JPEG quality (1-100), higher = better quality but larger file
         max_dimension: Maximum dimension to resize to (preserves aspect ratio)
         clear_memory: Whether to explicitly clear memory after processing
         output_format: Output format ('jpeg', 'png', 'webp')
-    
+
     Returns:
         Base64 encoded data URI string or None on error
     """
@@ -171,7 +170,7 @@ def tensor_to_base64_data_uri(
         # Store reference for memory clearing
         if isinstance(tensor_image, torch.Tensor):
             original_tensor = tensor_image
-        
+
         # Convert tensor to numpy if needed
         if isinstance(tensor_image, torch.Tensor):
             tensor_image = tensor_image.cpu().numpy()
@@ -183,7 +182,7 @@ def tensor_to_base64_data_uri(
         # Resize if image is too large
         if max_dimension is None:
             max_dimension = MAX_IMAGE_DIMENSION
-        
+
         width, height = img.size
         if width > max_dimension or height > max_dimension:
             ratio = min(max_dimension / width, max_dimension / height)
@@ -193,7 +192,7 @@ def tensor_to_base64_data_uri(
 
         # Save to BytesIO with specified format
         buffered = io.BytesIO()
-        
+
         if output_format.lower() == "png":
             # PNG supports transparency
             if img.mode != "RGBA":
@@ -212,7 +211,7 @@ def tensor_to_base64_data_uri(
 
         # Encode to Base64
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        
+
         log_debug(
             f"Converted ComfyUI IMAGE to Base64 Data URI. "
             f"Original Mode: {img.mode}, {output_format.upper()} Base64 length: {len(img_str)}, "
@@ -244,7 +243,7 @@ def build_vision_content(
     extract_metadata: bool = False,
 ) -> Tuple[list, list]:
     """Build OpenAI Vision API compatible content array from text and images.
-    
+
     Args:
         user_text: Text content for the user message
         image_data: List of image data objects from JSON parsing
@@ -253,7 +252,7 @@ def build_vision_content(
         max_dimension: Maximum dimension for resizing
         clear_memory: Whether to clear memory after processing
         extract_metadata: Whether to extract metadata from images
-        
+
     Returns:
         Tuple of (list of content items, list of metadata dicts)
     """
@@ -273,33 +272,38 @@ def build_vision_content(
                     # Validation: check if base64_str already contains "data:image"
                     if base64_str.startswith("data:image"):
                         image_url = base64_str
-                        log_debug(f"Using provided data:image URL for JSON image.")
+                        log_debug("Using provided data:image URL for JSON image.")
                     else:
                         image_url = f"data:image/jpeg;base64,{base64_str}"
-                        log_debug(f"Appended data:image/jpeg;base64, prefix to JSON image.")
+                        log_debug("Appended data:image/jpeg;base64, prefix to JSON image.")
 
                     user_content_items.append(
                         {"type": "image_url", "image_url": {"url": image_url}}
                     )
-                    
+
                     # Extract metadata if requested
                     if extract_metadata:
-                        metadata_list.append({
-                            "source": "image_data",
-                            "index": idx,
-                            "format": "jpeg",
-                            "size": len(base64_str)
-                        })
+                        metadata_list.append(
+                            {
+                                "source": "image_data",
+                                "index": idx,
+                                "format": "jpeg",
+                                "size": len(base64_str),
+                            }
+                        )
 
     # 3. Add Images from native ComfyUI IMAGE tensor
     if tensor_images is not None:
         # Handle both torch.Tensor and numpy.ndarray
         is_torch = isinstance(tensor_images, torch.Tensor)
         is_numpy = isinstance(tensor_images, np.ndarray)
-        
+
         if is_torch or is_numpy:
             # Process each image in the batch
-            log_debug(f"Processing native ComfyUI IMAGE tensor batch. Type: {'torch' if is_torch else 'numpy'}, Shape: {tensor_images.shape}")
+            log_debug(
+                "Processing native ComfyUI IMAGE tensor batch. "
+                f"Type: {'torch' if is_torch else 'numpy'}, Shape: {tensor_images.shape}"
+            )
             # Determine batch dimension (first dimension for both torch and numpy)
             batch_size = tensor_images.shape[0]
             for i in range(batch_size):
@@ -308,7 +312,7 @@ def build_vision_content(
                     metadata = extract_tensor_metadata(tensor_images[i], batch_index=i)
                     if metadata:
                         metadata_list.append(metadata)
-                
+
                 image_url = tensor_to_base64_data_uri(
                     tensor_images[i],
                     jpeg_quality=jpeg_quality,

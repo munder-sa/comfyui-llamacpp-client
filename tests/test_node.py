@@ -197,6 +197,114 @@ class TestProcessRequestOtherEndpoints(unittest.TestCase):
         mock_client.handle_reranking.assert_called_once()
         self.assertEqual(result[0], '[{"index": 0}]')
 
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_detokenize_endpoint(self, MockClientClass):
+        args = self.base_args.copy()
+        args["endpoint"] = "detokenize"
+
+        mock_client = MockClientClass.return_value
+        mock_client.handle_detokenize.return_value = ApiResponse(
+            {"content": "decoded text"}, "", "", 200
+        )
+
+        result = self.node.process_request(**args)
+
+        mock_client.handle_detokenize.assert_called_once()
+        self.assertEqual(result[0], "decoded text")
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_apply_template_endpoint(self, MockClientClass):
+        args = self.base_args.copy()
+        args["endpoint"] = "apply_template"
+
+        mock_client = MockClientClass.return_value
+        mock_client.handle_apply_template.return_value = ApiResponse(
+            {"content": "<|user|>\nhello"}, "", "", 200
+        )
+
+        result = self.node.process_request(**args)
+
+        mock_client.handle_apply_template.assert_called_once()
+        self.assertEqual(result[0], "<|user|>\nhello")
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_infill_endpoint(self, MockClientClass):
+        args = self.base_args.copy()
+        args["endpoint"] = "infill"
+
+        mock_client = MockClientClass.return_value
+        mock_client.handle_infill.return_value = ApiResponse(
+            {"content": "infilled code"}, "", "", 200
+        )
+
+        result = self.node.process_request(**args)
+
+        mock_client.handle_infill.assert_called_once()
+        self.assertEqual(result[0], "infilled code")
+
+
+class TestProcessRequestMetadata(unittest.TestCase):
+    def setUp(self):
+        self.node = LlamaCppClientNode()
+        self.base_args = {
+            "server_url": "http://localhost:8080",
+            "endpoint": "chat_completions",
+            "prompt": "test",
+            "system_message": "",
+            "user_message": "",
+            "assistant_message": "",
+            "messages": "[]",
+            "temperature": 0.7,
+            "top_k": 40,
+            "top_p": 0.9,
+            "min_p": 0.05,
+            "n_predict": 128,
+            "stop_sequences": "[]",
+            "stream": False,
+            "cache_prompt": True,
+            "api_key": "",
+            "timeout": 60,
+            "images": None,
+            "image_data": "[]",
+            "extract_metadata": True,
+        }
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_metadata_populated_from_chat(self, MockClientClass):
+        mock_client = MockClientClass.return_value
+        mock_response = ApiResponse(
+            data={"choices": [{"message": {"content": "ok"}}]},
+            raw='{"choices": [{"message": {"content": "ok"}}]}',
+            error="",
+            status_code=200,
+            metadata=[{"metrics": "data1"}, {"model_info": "data2"}],
+        )
+        mock_client.handle_chat_completions.return_value = mock_response
+
+        result = self.node.process_request(**self.base_args)
+
+        metadata = result[4]
+        self.assertIn("image_0", metadata)
+        self.assertIn("image_1", metadata)
+        self.assertEqual(metadata["image_0"], {"metrics": "data1"})
+        self.assertEqual(metadata["image_1"], {"model_info": "data2"})
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_metadata_empty_if_no_metrics(self, MockClientClass):
+        mock_client = MockClientClass.return_value
+        mock_response = ApiResponse(
+            data={"choices": [{"message": {"content": "ok"}}]},
+            raw='{"choices": [{"message": {"content": "ok"}}]}',
+            error="",
+            status_code=200,
+            metadata=[],
+        )
+        mock_client.handle_chat_completions.return_value = mock_response
+
+        result = self.node.process_request(**self.base_args)
+
+        metadata = result[4]
+        self.assertEqual(metadata, {})
 
 
 class TestMoENodeFeatures(unittest.TestCase):
@@ -236,7 +344,9 @@ class TestMoENodeFeatures(unittest.TestCase):
 
         def capture(**kwargs):
             captured_kwargs.update(kwargs)
-            return ApiResponse(data={"content": "ok"}, raw='{"content":"ok"}', error="", status_code=200)
+            return ApiResponse(
+                data={"content": "ok"}, raw='{"content":"ok"}', error="", status_code=200
+            )
 
         mock_client.handle_completion.side_effect = capture
 
@@ -254,7 +364,9 @@ class TestMoENodeFeatures(unittest.TestCase):
 
         def capture(**kwargs):
             captured_kwargs.update(kwargs)
-            return ApiResponse(data={"content": "ok"}, raw='{"content":"ok"}', error="", status_code=200)
+            return ApiResponse(
+                data={"content": "ok"}, raw='{"content":"ok"}', error="", status_code=200
+            )
 
         mock_client.handle_completion.side_effect = capture
 
@@ -271,7 +383,9 @@ class TestMoENodeFeatures(unittest.TestCase):
 
         def capture(**kwargs):
             captured_kwargs.update(kwargs)
-            return ApiResponse(data={"content": "ok"}, raw='{"content":"ok"}', error="", status_code=200)
+            return ApiResponse(
+                data={"content": "ok"}, raw='{"content":"ok"}', error="", status_code=200
+            )
 
         mock_client.handle_completion.side_effect = capture
 
@@ -284,6 +398,7 @@ class TestMoENodeFeatures(unittest.TestCase):
         resultant = captured_kwargs.get("samplers", [])
         if isinstance(resultant, str):
             import json
+
             resultant = json.loads(resultant)
         self.assertNotIn("dry", resultant)
         self.assertNotIn("xtc", resultant)
@@ -297,7 +412,9 @@ class TestMoENodeFeatures(unittest.TestCase):
 
         def capture(**kwargs):
             captured_kwargs.update(kwargs)
-            return ApiResponse(data={"content": "ok"}, raw='{"content":"ok"}', error="", status_code=200)
+            return ApiResponse(
+                data={"content": "ok"}, raw='{"content":"ok"}', error="", status_code=200
+            )
 
         mock_client.handle_completion.side_effect = capture
 
@@ -309,6 +426,7 @@ class TestMoENodeFeatures(unittest.TestCase):
         resultant = captured_kwargs.get("samplers", [])
         if isinstance(resultant, str):
             import json
+
             resultant = json.loads(resultant)
         self.assertIn("dry", resultant)
         self.assertIn("xtc", resultant)
@@ -333,7 +451,7 @@ class TestMoENodeFeatures(unittest.TestCase):
 
     @patch("llamacpp_client_node.LlamaCppAPIClient")
     def test_timings_absent_does_not_error(self, MockClientClass):
-        """If response has no 'timings' field, node must not raise and metadata has no timings key."""
+        """If response has no 'timings' field, it must not raise and metadata has no timings key."""
         mock_client = MockClientClass.return_value
         mock_client.handle_completion.return_value = ApiResponse(
             data={"content": "hi"},

@@ -88,3 +88,5 @@ coverage.xml
 .agents/
 PLAN.md
 REVISION_HISTORY.md
+
+tests/sample/

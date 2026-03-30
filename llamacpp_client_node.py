@@ -8,9 +8,9 @@ try:
     from utils.logger import log_error, log_info, set_debug_mode
     from utils.param_utils import parse_json_param
 except ImportError:
-    from .utils.llama_client import ApiResponse, LlamaCppAPIClient
-    from .utils.logger import log_error, log_info, set_debug_mode
-    from .utils.param_utils import parse_json_param
+    from .utils.llama_client import ApiResponse, LlamaCppAPIClient  # type: ignore[no-redef]
+    from .utils.logger import log_error, log_info, set_debug_mode  # type: ignore[no-redef]
+    from .utils.param_utils import parse_json_param  # type: ignore[no-redef]
 
 
 class SamplingParams(TypedDict):
@@ -363,7 +363,7 @@ class LlamaCppClientNode:
             elif endpoint == "reranking":
                 return json.dumps(response.get("results", []))
             else:
-                return response.get("content", response.get("text", ""))
+                return str(response.get("content", response.get("text", "")))
         return str(response) if response else ""
 
     @staticmethod
@@ -607,12 +607,12 @@ class LlamaCppClientNode:
             api_response: ApiResponse
 
             if endpoint == "completion":
-                params: CompletionParams = {
+                c_params: CompletionParams = {
                     "prompt": prompt,
                     "n_predict": n_predict,
                     "sampling": sampling_params,
                 }
-                kwargs = self._build_completion_kwargs(params)
+                kwargs = self._build_completion_kwargs(c_params)
                 api_response = client.handle_completion(**kwargs)
                 response = api_response.data
                 raw_response = api_response.raw
@@ -620,7 +620,7 @@ class LlamaCppClientNode:
                 status_code = api_response.status_code
 
             elif endpoint == "chat_completions":
-                params: ChatParams = {
+                chat_params: ChatParams = {
                     "messages": messages,
                     "system_message": system_message,
                     "user_message": user_message,
@@ -636,7 +636,7 @@ class LlamaCppClientNode:
                     "extract_metadata": extract_metadata,
                     "sampling": sampling_params,
                 }
-                kwargs = self._build_chat_kwargs(params)
+                kwargs = self._build_chat_kwargs(chat_params)
                 api_response = client.handle_chat_completions(**kwargs)
                 response = api_response.data
                 raw_response = api_response.raw
@@ -690,7 +690,7 @@ class LlamaCppClientNode:
                 status_code = api_response.status_code
 
             elif endpoint == "infill":
-                params: InfillParams = {
+                i_params: InfillParams = {
                     "input_prefix": input_prefix,
                     "input_suffix": input_suffix,
                     "input_extra": input_extra,
@@ -698,7 +698,7 @@ class LlamaCppClientNode:
                     "n_predict": n_predict,
                     "sampling": sampling_params,
                 }
-                kwargs = self._build_infill_kwargs(params)
+                kwargs = self._build_infill_kwargs(i_params)
                 api_response = client.handle_infill(**kwargs)
                 response = api_response.data
                 raw_response = api_response.raw
@@ -706,17 +706,17 @@ class LlamaCppClientNode:
                 status_code = api_response.status_code
 
             elif endpoint == "reranking":
-                params: RerankingParams = {
+                r_params: RerankingParams = {
                     "model": model,
                     "query": query,
                     "documents": documents,
                     "top_n": top_n,
                 }
                 kwargs = {
-                    "model": params["model"],
-                    "query": params["query"],
-                    "documents": parse_json_param(params["documents"], []),
-                    "top_n": params["top_n"],
+                    "model": r_params["model"],
+                    "query": r_params["query"],
+                    "documents": parse_json_param(r_params["documents"], []),
+                    "top_n": r_params["top_n"],
                 }
                 api_response = client.handle_reranking(**kwargs)
                 response = api_response.data
