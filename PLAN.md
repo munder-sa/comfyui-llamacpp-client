@@ -1,103 +1,49 @@
-# テスト整理・品質向上 実装計画
+# comfyui-llamacpp-client プロジェクト計画
 
-## 概要
-
-現状の散在したテストファイルを整理し、`unittest.TestCase` ベースで統一された
-テストスイートに再構築する。全テストはサーバー不要（Mock ベース）で動作し、
-`pytest` で一括実行可能にする。
+最終更新: 2026-03-30
 
 ---
 
-## 現状の問題点
+## プロジェクト現状サマリー
 
-### バグ・欠陥
+### 完了済みフェーズ
 
-| ファイル | 行 | 問題 |
+| フェーズ | 内容 | 状態 |
 |---|---|---|
-| `test_node.py` | 34, 59, 95, 124 | `process_request()` は `5-tuple` を返すが `4-tuple` でアンパック |
-| `test_optimized_features.py` | 147 | `MockLlamaClient._make_request` の型ヒントが `Tuple[str,str,str,int]`（正: `Tuple[dict,str,str,int]`） |
-| `test_optimized_features.py` | 51-71 | `MockLlamaServer.create_completion_response` が `{"choices":[...]}` を返すが `/completion` は `{"content":"..."}` が正しい形式 |
-| `test_endpoint_switch.py` / `test_ui_order.py` | 全体 | `MockWidget` / `MockNode` / `updateUI` が完全重複 |
+| コア実装 | `llamacpp_client_node.py` / `utils/` 全モジュール | ✅ 完了 |
+| テスト基盤構築 | `tests/` ディレクトリ再編、`tests/__init__.py` / `helpers.py` 作成 | ✅ 完了 |
+| test_param_utils | `param_utils.py` 全関数テスト (109テスト中の一部) | ✅ 完了 |
+| test_llama_client | 全エンドポイント + リトライ + レスポンス検証テスト (491行, 充実) | ✅ 完了 |
+| 旧テストファイル整理 | ルートレベルの旧テストファイルを削除 | ✅ 完了 |
+| pyproject.toml 設定 | pytest / dev dependencies 設定追加 | ✅ 完了 |
+| メッセージ構築リファクタ | `chat_completions` のシステムメッセージ先頭配置保証 | ✅ 完了 |
 
-### カバレッジの欠如
-
-- `utils/param_utils.py`: `map_parameters()` / `safe_convert_to_int()` / `safe_convert_to_float()` が**未テスト**
-- `utils/image_utils.py`: `detect_image_format()` / `validate_image_data()` / `process_image_data_string()` が**未テスト**
-- `utils/llama_client.py`: `handle_embeddings()` / `handle_tokenize()` / `handle_detokenize()` / `handle_apply_template()` / `handle_infill()` / `handle_reranking()` が**未テスト**
-- `llamacpp_client_node.py`: `process_request()` の全エンドポイント分岐が**未テスト**
-
-### 構造上の問題
-
-- `test_endpoint_switch.py` / `test_ui_order.py` / `test_fix.py`: `unittest` 未使用・印刷ベース→ CI 統合不可
-- `test_node.py`: 実サーバーへの接続を前提とした統合テスト→ CI 不可
-
----
-
-## 新しいディレクトリ構造
+### 現在のテスト状況
 
 ```
-comfyui-llamacpp-client/
-├── tests/
-│   ├── __init__.py
-│   ├── helpers.py               # 共通 Mock / ヘルパー
-│   ├── test_param_utils.py      # NEW: param_utils 全関数テスト
-│   ├── test_image_utils.py      # NEW: image_utils 全関数テスト
-│   ├── test_llama_client.py     # REWRITE: 全エンドポイント + エラーハンドリング
-│   ├── test_node.py             # REWRITE: LlamaCppClientNode.process_request 全分岐 (Mock)
-│   └── test_ui_logic.py         # MERGE: endpoint_switch + ui_order を統合・unittest 化
-│
-│   # 以下は移行完了後に削除
-├── test_node.py                 → tests/test_node.py に移行後、削除
-├── test_error_handling.py       → tests/test_llama_client.py に統合後、削除
-├── test_optimized_features.py   → tests/test_image_utils.py + test_llama_client.py に分配後、削除
-├── test_endpoint_switch.py      → tests/test_ui_logic.py に統合後、削除
-├── test_ui_order.py             → tests/test_ui_logic.py に統合後、削除
-└── test_fix.py                  → tests/test_param_utils.py に統合後、削除
+109 passed, 2 warnings  (2026-03-30 時点)
+```
+
+venv: `D:\AI\ComfyUI\venv\Scripts\python.exe`
+
+```bash
+# 全テスト実行
+D:\AI\ComfyUI\venv\Scripts\python.exe -m pytest tests/ -v --no-cov
+
+# カバレッジ付き
+D:\AI\ComfyUI\venv\Scripts\python.exe -m pytest tests/ -v --cov=utils --cov=llamacpp_client_node --cov-report=term-missing
 ```
 
 ---
 
-## 各ファイルの詳細仕様
+## フェーズ1: テスト品質向上（進行中）
 
-### `tests/helpers.py`
+現在の3ファイルは「簡略版」実装のため、旧PLAN.mdの詳細仕様に準拠させる。
 
-```python
-# 提供するもの:
-# - _make_mock_response(status_code, json_data, text, raise_json) -> MagicMock
-# - SessionPatchMixin: _patch_session_post(client, side_effect, return_value)
-# - MockWidget(name, value)
-# - MockNode: add_widget(name, value) / masterWidgets / widgets / inputs
-# - make_completion_response(content) -> dict  # {"content": content}
-# - make_chat_response(content) -> dict        # {"choices":[{"message":{"content":content}}]}
-# - create_numpy_image(h, w, channels, value) -> np.ndarray  # float32, 0-1 range
-```
+### 1-1. `tests/test_image_utils.py` のリライト
 
----
-
-### `tests/test_param_utils.py` (新規)
-
-| テストクラス | テストメソッド | 検証内容 |
-|---|---|---|
-| `TestCleanParams` | `test_none_values_removed` | `None` 値が削除される |
-| | `test_empty_string_removed` | 空文字が削除される |
-| | `test_json_string_parsed` | `stop_sequences`等 JSON 文字列がパースされる |
-| | `test_list_passthrough` | 既に list の場合はそのまま通過 |
-| | `test_invalid_json_fallback_to_empty_list` | 不正 JSON は `[]` にフォールバック |
-| | `test_image_data_newline_stripped` | `image_data` の改行が除去される |
-| `TestMapParameters` | `test_basic_mapping` | mapping 通りにキーが変換される |
-| | `test_missing_keys_skipped` | mapping にないキーはスキップ |
-| | `test_none_values_skipped` | `None` 値はスキップ |
-| `TestSafeConvertToInt` | `test_normal_conversion` | 通常の int 変換 |
-| | `test_float_string_conversion` | `"1.0"` → `1` |
-| | `test_invalid_string_returns_default` | 不正文字列はデフォルト値を返す |
-| | `test_min_max_clipping` | min/max 範囲外はデフォルト値を返す |
-| `TestSafeConvertToFloat` | `test_normal_conversion` | 通常の float 変換 |
-| | `test_randomize_returns_default` | `"randomize"` はデフォルト値を返す |
-| | `test_min_max_clipping` | min/max 範囲外はデフォルト値を返す |
-
----
-
-### `tests/test_image_utils.py` (新規)
+**現状**: 1クラス `TestImageUtils` に7メソッド（全般的なスモークテスト）
+**目標**: 5クラスに分割し、エッジケースを網羅
 
 | テストクラス | テストメソッド | 検証内容 |
 |---|---|---|
@@ -122,45 +68,10 @@ comfyui-llamacpp-client/
 | | `test_metadata_extraction` | `extract_metadata=True` でメタデータ取得 |
 | | `test_empty_inputs` | 空入力は空リストを返す |
 
----
+### 1-2. `tests/test_node.py` のリライト
 
-### `tests/test_llama_client.py` (既存 `test_error_handling.py` を拡張・移行)
-
-| テストクラス | テストメソッド | 検証内容 |
-|---|---|---|
-| `TestMakeRequest` | `test_successful_completion_response` | `content` キーある場合に正常 200 |
-| | `test_successful_chat_response` | `choices` キーある場合に正常 200 |
-| | `test_http_400_error` | 400 → error に "400" が含まれる |
-| | `test_http_500_error` | 500 → error に "500" が含まれる |
-| | `test_invalid_json_response` | JSONDecodeerror → 502 / "Invalid JSON" |
-| | `test_invalid_structure_returns_error` | `content`/`text`/`choices` なし → "Invalid structure" |
-| | `test_think_tag_stripped` | `<think>...</think>` が除去される |
-| | `test_prompt_tag_extracted` | `<prompt>...</prompt>` の中身が抽出される |
-| `TestRetryDecorator` | `test_connection_error_retried_3_times` | 3 回リトライ後に re-raise |
-| | `test_timeout_error_retried_3_times` | 3 回リトライ後に re-raise |
-| | `test_success_on_second_attempt` | 2 回目で成功 → call_count == 2 |
-| | `test_non_transient_error_not_retried` | `RequestException` はリトライしない → 500 |
-| `TestHandleCompletion` | `test_basic_completion` | 正常 completion レスポンス |
-| | `test_stop_sequences_forced` | `params["stop"]` が強制上書きされる |
-| | `test_http_error` | 400 → error あり |
-| `TestHandleChatCompletions` | `test_system_and_user_message` | system + user がメッセージに組み込まれる |
-| | `test_messages_history_prepended` | `messages` 履歴が正しく前置される |
-| | `test_assistant_prefill` | `assistant_message` がメッセージに追加される |
-| | `test_image_data_included` | `image_data` が vision content に含まれる |
-| | `test_tensor_images_included` | `images` テンソルが vision content に含まれる |
-| | `test_returns_5_tuple` | 戻り値は 5-tuple |
-| | `test_error_returns_5_tuple` | エラー時も 5-tuple |
-| `TestHandleEmbeddings` | `test_basic_embeddings` | embeddings エンドポイント正常系 |
-| | `test_http_error` | 400 → error あり |
-| `TestHandleTokenize` | `test_basic_tokenize` | tokenize エンドポイント正常系 |
-| `TestHandleDetokenize` | `test_basic_detokenize` | detokenize エンドポイント正常系 |
-| `TestHandleApplyTemplate` | `test_basic_apply_template` | apply_template エンドポイント正常系 |
-| `TestHandleInfill` | `test_basic_infill` | infill エンドポイント正常系 |
-| `TestHandleReranking` | `test_basic_reranking` | reranking エンドポイント正常系 |
-
----
-
-### `tests/test_node.py` (既存 `test_node.py` を全面 rewrite)
+**現状**: 1クラス `TestNode` に13メソッド（`_extract_response_text` 中心、`process_request` 統合テストなし）
+**目標**: 4クラスに分割し、`process_request` の全エンドポイント分岐をモックでテスト
 
 | テストクラス | テストメソッド | 検証内容 |
 |---|---|---|
@@ -181,9 +92,10 @@ comfyui-llamacpp-client/
 | | `test_reranking_endpoint` | reranking 分岐が呼ばれる |
 | `TestProcessRequestMetadata` | `test_metadata_populated_from_chat` | chat で metadata_list があれば metadata dict に収録される |
 
----
+### 1-3. `tests/test_ui_logic.py` の拡充
 
-### `tests/test_ui_logic.py` (新規: `test_endpoint_switch.py` + `test_ui_order.py` を統合)
+**現状**: 1クラス `TestUILogic` に4メソッド（INPUT_TYPES の構造確認のみ）
+**目標**: 3クラスに分割し、エンドポイント切り替えロジックと Widget 順序を検証
 
 | テストクラス | テストメソッド | 検証内容 |
 |---|---|---|
@@ -198,54 +110,104 @@ comfyui-llamacpp-client/
 | `TestImageDataVisibility` | `test_image_data_hidden_when_image_link` | `images` リンクあり → `image_data` が非表示 |
 | | `test_image_data_shown_when_no_image_link` | `images` リンクなし → `image_data` が表示 |
 
+### 実装順序
+
+1. `[ ]` `tests/test_image_utils.py` をリライト（5クラス、19メソッド以上）
+2. `[ ]` `tests/test_node.py` をリライト（4クラス、16メソッド以上）
+3. `[ ]` `tests/test_ui_logic.py` を拡充（3クラス、10メソッド以上）
+4. `[ ]` 全テストが通ることを確認（`pytest tests/ -v --no-cov`）
+
 ---
 
-## `pyproject.toml` への追加設定
+## フェーズ2: CI/CD 整備
 
-```toml
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short"
+### 2-1. GitHub Actions ワークフロー構築
+
+`.github/workflows/` に以下のワークフローを作成する。
+
+#### `ci.yml` — Pull Request・Push 時の自動テスト
+
+```yaml
+# トリガー: push to main/develop, PR to main
+# ジョブ:
+#   1. lint (flake8, mypy)
+#   2. test (pytest --cov, カバレッジレポート)
+# Python バージョン: 3.10, 3.11 (matrix)
 ```
 
+**実装項目:**
+- `[ ]` `.github/workflows/ci.yml` を作成
+  - `actions/checkout@v4`
+  - `actions/setup-python@v5` (matrix: 3.10, 3.11)
+  - pip install `.[dev]`
+  - `flake8` lint チェック
+  - `mypy` 型チェック（`mypy.ini` 参照）
+  - `pytest tests/ --cov=utils --cov=llamacpp_client_node --cov-report=xml`
+  - Codecov へのカバレッジアップロード（オプション）
+
+#### `release.yml` — タグプッシュ時のリリース自動化
+
+```yaml
+# トリガー: push tag v*.*.*
+# ジョブ:
+#   1. テスト実行（ci.yml 再利用 or inline）
+#   2. CHANGELOG.md から リリースノート抽出
+#   3. GitHub Release 作成
+```
+
+**実装項目:**
+- `[ ]` `.github/workflows/release.yml` を作成
+  - `v*.*.*` タグトリガー
+  - テスト合格を条件とする
+  - `CHANGELOG.md` 内の最新バージョンエントリを抽出してリリースノートに使用
+  - `actions/create-release@v1` または `softprops/action-gh-release` でリリース作成
+
+### 2-2. 品質チェック強化
+
+- `[ ]` `pyproject.toml` の `[tool.pytest.ini_options]` を修正
+  - `testpaths = ["tests"]` を追加
+  - `addopts` を `"-v --tb=short"` に整理（カバレッジはCI専用に切り分け）
+- `[ ]` `.pre-commit-config.yaml` の動作確認と必要に応じた更新
+- `[ ]` `mypy` がクリーンにパスすることを確認
+
+### 2-3. バッジ追加
+
+- `[ ]` `README.md` にバッジを追加
+  - CI ステータスバッジ（GitHub Actions）
+  - テストカバレッジバッジ（Codecov）
+  - Python バージョンバッジ
+
 ---
 
-## 既存ファイルの処置方針
+## 技術的制約・注意事項
 
-| 現ファイル | 処置 |
+### 実行環境
+
+- **Python venv**: `D:\AI\ComfyUI\venv\Scripts\python.exe`
+- システム Python は**使用禁止**
+- GitHub Actions では `python-version: ["3.10", "3.11"]` matrix を使用
+
+### テスト方針
+
+- **全テストはサーバー不要（Mockベース）**
+- `unittest.TestCase` ベースで統一
+- `pytest` で一括実行可能
+- IMAGE テンソル: `[Batch, Height, Width, Channels]` float32, 0-1 range
+
+### ComfyUI 固有仕様
+
+- `process_request()` は **5-tuple** を返す: `(response_text, raw_response, error, status_code, metadata)`
+- `handle_chat_completions()` は `ApiResponse` を返す（`.unpack()` で 5-tuple に展開）
+- エンドポイント一覧: `completion`, `chat_completions`, `embeddings`, `tokenize`, `detokenize`, `apply_template`, `infill`, `reranking`
+
+---
+
+## 実装履歴参照
+
+詳細な変更履歴は `REVISION_HISTORY.md` を参照。
+
+| 日付 | 主な変更 |
 |---|---|
-| `test_node.py` | `tests/test_node.py` に rewrite 後、ルート版は削除 |
-| `test_error_handling.py` | `tests/test_llama_client.py` に統合後、削除 |
-| `test_optimized_features.py` | `tests/test_image_utils.py` + `tests/test_llama_client.py` に分配後、削除 |
-| `test_endpoint_switch.py` | `tests/test_ui_logic.py` に統合後、削除 |
-| `test_ui_order.py` | `tests/test_ui_logic.py` に統合後、削除 |
-| `test_fix.py` | `tests/test_param_utils.py` に統合後、削除 |
-
----
-
-## 実装順序
-
-1. `tests/__init__.py` を作成
-2. `tests/helpers.py` を作成（共通ヘルパー）
-3. `tests/test_param_utils.py` を作成
-4. `tests/test_image_utils.py` を作成
-5. `tests/test_llama_client.py` を作成（`test_error_handling.py` の内容を移行・拡充）
-6. `tests/test_node.py` を作成（`test_node.py` を全面 rewrite）
-7. `tests/test_ui_logic.py` を作成（`test_endpoint_switch.py` + `test_ui_order.py` を統合）
-8. `pyproject.toml` に pytest 設定を追加
-9. ルートレベルの旧テストファイルを削除
-
----
-
-## 実行コマンド（実装後）
-
-```bash
-# 全テスト実行
-D:\AI\ComfyUI\venv\Scripts\python.exe -m pytest tests/ -v
-
-# カバレッジレポート付き（pytest-cov が必要）
-D:\AI\ComfyUI\venv\Scripts\python.exe -m pytest tests/ -v --cov=utils --cov=llamacpp_client_node --cov-report=term-missing
-```
+| 2026-03-22 | システムメッセージ配置ロジック改善・メタデータ抽出強化 |
+| 2026-03-21 | デバッグログ追加・パラメータ処理改善 |
+| 2026-03-21 | 実行ロジック復元・マルチモーダル機能統合・JSON パース徹底 |

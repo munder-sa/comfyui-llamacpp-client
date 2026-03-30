@@ -1,91 +1,201 @@
 import unittest
 from unittest.mock import patch
 
+import numpy as np
+
 from llamacpp_client_node import LlamaCppClientNode
+from utils.llama_client import ApiResponse
 
 
-class TestNode(unittest.TestCase):
+class TestLlamaCppClientNodeStructure(unittest.TestCase):
     def setUp(self):
         self.node = LlamaCppClientNode()
 
-    @patch("llamacpp_client_node.LlamaCppClientNode.process_request")
-    def test_process_request_success(self, mock_process_request):
-        mock_process_request.return_value = {"status": "success", "data": "processed"}
-
-        result = self.node.process_request({"key": "value"})
-        self.assertEqual(result["status"], "success")
-        self.assertEqual(result["data"], "processed")
-
-    @patch("llamacpp_client_node.LlamaCppClientNode.process_request")
-    def test_process_request_failure(self, mock_process_request):
-        mock_process_request.side_effect = Exception("Processing error")
-
-        with self.assertRaises(Exception):
-            self.node.process_request({"key": "value"})
-
-    def test_input_types(self):
+    def test_input_types_has_required_keys(self):
         input_types = self.node.INPUT_TYPES()
-        self.assertIsInstance(input_types, dict)
-        self.assertIn("required", input_types)
-        self.assertIn("optional", input_types)
+        required = input_types["required"]
+        self.assertIn("server_url", required)
+        self.assertIn("endpoint", required)
+        self.assertEqual(required["server_url"][0], "STRING")
 
-    def test_extract_response_text_completion(self):
-        response = {"content": "hello"}
-        result = self.node._extract_response_text(response, "completion")
-        self.assertEqual(result, "hello")
+    def test_return_types_5_tuple(self):
+        self.assertEqual(len(self.node.RETURN_TYPES), 5)
+        # (response_text, raw_response, error, status_code, metadata)
+        self.assertEqual(self.node.RETURN_TYPES[0], "STRING")
+        self.assertEqual(self.node.RETURN_TYPES[2], "STRING")
+        self.assertEqual(self.node.RETURN_TYPES[3], "INT")
 
-    def test_extract_response_text_chat(self):
-        response = {"choices": [{"message": {"content": "world"}}]}
-        result = self.node._extract_response_text(response, "chat_completions")
-        self.assertEqual(result, "world")
+    def test_return_names_5_tuple(self):
+        self.assertEqual(len(self.node.RETURN_NAMES), 5)
+        self.assertEqual(self.node.RETURN_NAMES[0], "response")
+        self.assertEqual(self.node.RETURN_NAMES[2], "error")
 
-    def test_extract_response_text_scalar(self):
-        result = self.node._extract_response_text("plain text", "completion")
-        self.assertEqual(result, "plain text")
+    def test_node_category(self):
+        self.assertEqual(self.node.CATEGORY, "AI/LlamaCpp")
 
-    def test_extract_response_text_embeddings(self):
-        response = {"data": [[0.1, 0.2], [0.3, 0.4]]}
-        result = self.node._extract_response_text(response, "embeddings")
-        self.assertEqual(result, "[[0.1, 0.2], [0.3, 0.4]]")
 
-    def test_extract_response_text_tokenize(self):
-        response = {"tokens": [1, 2, 3, 4, 5]}
-        result = self.node._extract_response_text(response, "tokenize")
-        self.assertEqual(result, "[1, 2, 3, 4, 5]")
+class TestProcessRequest(unittest.TestCase):
+    def setUp(self):
+        self.node = LlamaCppClientNode()
+        # Common valid arguments for process_request
+        self.common_args = {
+            "server_url": "http://localhost:8080",
+            "endpoint": "completion",
+            "prompt": "test prompt",
+            "system_message": "",
+            "user_message": "",
+            "assistant_message": "",
+            "messages": "[]",
+            "temperature": 0.7,
+            "top_k": 40,
+            "top_p": 0.95,
+            "min_p": 0.05,
+            "n_predict": 128,
+            "stop_sequences": "[]",
+            "stream": False,
+            "cache_prompt": True,
+            "api_key": "",
+            "timeout": 60,
+            "images": None,
+            "image_data": "[]",
+            "extract_metadata": False,
+        }
 
-    def test_extract_response_text_reranking(self):
-        response = {"results": [{"index": 0, "score": 0.95}]}
-        result = self.node._extract_response_text(response, "reranking")
-        self.assertEqual(result, '[{"index": 0, "score": 0.95}]')
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_process_request_completion_success(self, MockClientClass):
+        # Setup mock client
+        mock_client = MockClientClass.return_value
+        mock_response = ApiResponse(
+            data={"content": "Hello world"},
+            raw='{"content": "Hello world"}',
+            error="",
+            status_code=200,
+        )
+        mock_client.handle_completion.return_value = mock_response
 
-    def test_extract_response_text_detokenize(self):
-        response = {"content": "hello world"}
-        result = self.node._extract_response_text(response, "detokenize")
-        self.assertEqual(result, "hello world")
+        # Execute
+        result = self.node.process_request(**self.common_args)
 
-    def test_extract_response_text_apply_template(self):
-        response = {"content": "<system>prompt</system>"}
-        result = self.node._extract_response_text(response, "apply_template")
-        self.assertEqual(result, "<system>prompt</system>")
+        # Verify
+        self.assertEqual(result[0], "Hello world")
+        self.assertEqual(result[2], "")
+        self.assertEqual(result[3], 200)
+        mock_client.handle_completion.assert_called_once()
 
-    def test_extract_response_text_infill(self):
-        response = {"content": "completed code"}
-        result = self.node._extract_response_text(response, "infill")
-        self.assertEqual(result, "completed code")
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_process_request_chat_completions_with_images(self, MockClientClass):
+        # Update args for chat_completions
+        args = self.common_args.copy()
+        args["endpoint"] = "chat_completions"
+        args["user_message"] = "What is in this image?"
+        args["images"] = np.zeros((1, 64, 64, 3), dtype=np.float32)
 
-    def test_extract_response_text_with_text_field(self):
-        response = {"text": "fallback text"}
-        result = self.node._extract_response_text(response, "completion")
-        self.assertEqual(result, "fallback text")
+        # Setup mock client
+        mock_client = MockClientClass.return_value
+        mock_response = ApiResponse(
+            data={"choices": [{"message": {"content": "An image"}}]},
+            raw='{"choices": [...]}',
+            error="",
+            status_code=200,
+            metadata=[{"image_0": "meta"}],
+        )
+        mock_client.handle_chat_completions.return_value = mock_response
 
-    def test_extract_response_text_empty_response(self):
-        response = {}
-        result = self.node._extract_response_text(response, "completion")
-        self.assertEqual(result, "")
+        # Execute
+        result = self.node.process_request(**args)
 
-    def test_extract_response_text_non_dict_response(self):
-        result = self.node._extract_response_text(None, "completion")
-        self.assertEqual(result, "")
+        # Verify
+        self.assertEqual(result[0], "An image")
+        self.assertIn("image_0", result[4])  # metadata dict
+        mock_client.handle_chat_completions.assert_called_once()
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_process_request_error_status(self, MockClientClass):
+        mock_client = MockClientClass.return_value
+        mock_response = ApiResponse(data={}, raw="", error="Connection Refused", status_code=503)
+        mock_client.handle_completion.return_value = mock_response
+
+        result = self.node.process_request(**self.common_args)
+
+        self.assertEqual(result[2], "Connection Refused")
+        self.assertEqual(result[3], 503)
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_process_request_exception_handling(self, MockClientClass):
+        mock_client = MockClientClass.return_value
+        mock_client.handle_completion.side_effect = Exception("Unexpected crash")
+
+        result = self.node.process_request(**self.common_args)
+
+        self.assertIn("Unexpected crash", result[2])
+        self.assertEqual(result[3], 500)
+
+
+class TestProcessRequestOtherEndpoints(unittest.TestCase):
+    def setUp(self):
+        self.node = LlamaCppClientNode()
+        self.base_args = {
+            "server_url": "http://localhost:8080",
+            "prompt": "test",
+            "system_message": "",
+            "user_message": "",
+            "assistant_message": "",
+            "messages": "[]",
+            "temperature": 0.7,
+            "top_k": 40,
+            "top_p": 0.9,
+            "min_p": 0.05,
+            "n_predict": 128,
+            "stop_sequences": "[]",
+            "stream": False,
+            "cache_prompt": True,
+            "api_key": "",
+            "timeout": 60,
+            "images": None,
+            "image_data": "[]",
+            "extract_metadata": False,
+        }
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_embeddings_endpoint(self, MockClientClass):
+        args = self.base_args.copy()
+        args["endpoint"] = "embeddings"
+
+        mock_client = MockClientClass.return_value
+        mock_client.handle_embeddings.return_value = ApiResponse({"data": [[0.1]]}, "", "", 200)
+
+        result = self.node.process_request(**args)
+
+        mock_client.handle_embeddings.assert_called_once()
+        self.assertEqual(result[0], "[[0.1]]")
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_tokenize_endpoint(self, MockClientClass):
+        args = self.base_args.copy()
+        args["endpoint"] = "tokenize"
+
+        mock_client = MockClientClass.return_value
+        mock_client.handle_tokenize.return_value = ApiResponse({"tokens": [1, 2, 3]}, "", "", 200)
+
+        result = self.node.process_request(**args)
+
+        mock_client.handle_tokenize.assert_called_once()
+        self.assertEqual(result[0], "[1, 2, 3]")
+
+    @patch("llamacpp_client_node.LlamaCppAPIClient")
+    def test_reranking_endpoint(self, MockClientClass):
+        args = self.base_args.copy()
+        args["endpoint"] = "reranking"
+
+        mock_client = MockClientClass.return_value
+        mock_client.handle_reranking.return_value = ApiResponse(
+            {"results": [{"index": 0}]}, "", "", 200
+        )
+
+        result = self.node.process_request(**args)
+
+        mock_client.handle_reranking.assert_called_once()
+        self.assertEqual(result[0], '[{"index": 0}]')
 
 
 if __name__ == "__main__":

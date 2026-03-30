@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -pip install --upgrade pip
+        pip install .[dev]
+
+    - name: Run final tests
+      run: |
+        pytest tests/ -v
+
+    - name: Generate Release Notes
+      id: release_notes
+      run: |
+        # CHANGELOG.md の最新バージョンエントリ (## [1.0.0] などの下) を抽出する簡易スクリプト
+        # タグ名からバージョン番号を取得 (v1.0.0 -> 1.0.0)
+        VERSION=${GITHUB_REF_NAME#v}
+        # CHANGELOG から該当バージョンの内容を抽出 (次の見出し ## までの間)
+        sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '1d;$d' > release_body.txt
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: release_body.txt
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

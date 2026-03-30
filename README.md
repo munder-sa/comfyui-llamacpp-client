@@ -3,7 +3,9 @@
 A comprehensive ComfyUI custom node that provides complete client functionality for **llama-server** from [llama.cpp](https://github.com/ggml-org/llama.cpp). This node acts as a bridge between ComfyUI workflows and llama-server instances, supporting **every single parameter and endpoint** that llama-server offers.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.7+-green.svg)
+![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11-green.svg)
+![CI](https://github.com/munder-sa/comfyui-llamacpp-client/actions/workflows/ci.yml/badge.svg)
+![Test Coverage](https://img.shields.io/codecov/c/github/munder-sa/comfyui-llamacpp-client)
 ![ComfyUI](https://img.shields.io/badge/ComfyUI-compatible-orange.svg)
 ![llama.cpp](https://img.shields.io/badge/llama.cpp-compatible-red.svg)
 
@@ -38,7 +40,7 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 
 ### **Advanced Sampling Methods**
 - **DRY Sampling**: Eliminates repetition with smart sequence detection
-- **XTC Sampling**: Cross-token coherence for better consistency  
+- **XTC Sampling**: Cross-token coherence for better consistency
 - **Mirostat**: Perplexity-based sampling for controlled creativity
 - **Dynamic Temperature**: Adaptive temperature that changes during generation
 - **Custom Sampler Chains**: Define your own sampling pipeline
@@ -57,7 +59,7 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 
 ### **Performance & Production Features**
 - **KV Cache Management**: Reuse computations between requests
-- **Slot Management**: Handle concurrent requests efficiently  
+- **Slot Management**: Handle concurrent requests efficiently
 - **LoRA Adapters**: Dynamic model adaptation per request
 - **Streaming**: Real-time token generation
 - **Authentication**: API key support for secure deployments
@@ -124,7 +126,7 @@ Repeat Penalty: 1.05
 
 ### Structured JSON Output
 ```
-Endpoint: completion  
+Endpoint: completion
 Prompt: "Generate a product review for a laptop"
 JSON Schema: {
   "type": "object",
@@ -163,7 +165,7 @@ Tools: [
   {
     "type": "function",
     "function": {
-      "name": "get_weather", 
+      "name": "get_weather",
       "description": "Get weather for a location",
       "parameters": {
         "type": "object",
@@ -213,7 +215,7 @@ This tests all endpoints and validates your server connection.
 
 ### **Content Creation Workflows**
 - Generate story outlines with structured JSON
-- Create character dialogues with chat completions  
+- Create character dialogues with chat completions
 - Fill in story gaps with infill completion
 - Rank story ideas with reranking
 
@@ -249,7 +251,7 @@ The node provides four outputs for maximum flexibility:
 ### **Generation Control** (20+ parameters)
 Temperature, top-k, top-p, min-p, seed, n_predict, streaming, etc.
 
-### **Advanced Sampling** (25+ parameters)  
+### **Advanced Sampling** (25+ parameters)
 DRY, XTC, Mirostat, dynamic temperature, custom sampler chains, etc.
 
 ### **Repetition Management** (10+ parameters)
@@ -280,7 +282,7 @@ Tokenization, embeddings, infill, reranking specific options, etc.
 
 ### Performance Tips
 1. Use `cache_prompt=true` for similar prompts
-2. Set appropriate `id_slot` for concurrent requests  
+2. Set appropriate `id_slot` for concurrent requests
 3. Configure `n_keep` to retain important context
 4. Use streaming for long generations
 5. Optimize server batch sizes for your hardware
@@ -301,7 +303,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## 🙏 Acknowledgments
 
 - **[llama.cpp team](https://github.com/ggml-org/llama.cpp)** for the excellent server implementation
-- **[ComfyUI](https://github.com/comfyanonymous/ComfyUI)** for the amazing workflow platform  
+- **[ComfyUI](https://github.com/comfyanonymous/ComfyUI)** for the amazing workflow platform
 - **Open source community** for feedback and contributions
 
 ## 📈 Project Stats
