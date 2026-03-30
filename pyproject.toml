@@ -37,7 +37,8 @@ dev = [
     "mypy>=1.0.0",
     "flake8>=6.0.0",
     "pytest>=7.0.0",
-    "pytest-cov>=4.0.0"
+    "pytest-cov>=4.0.0",
+    "types-requests>=2.28.0"
 ]
 
 [tool.pytest.ini_options]
