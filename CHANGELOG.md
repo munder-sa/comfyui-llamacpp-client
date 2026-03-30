@@ -1,15 +1,31 @@
-### 2026-03-30
-- Enhanced test suite quality and coverage:
-  - Refactored `tests/test_image_utils.py`, `tests/test_node.py`, and `tests/test_ui_logic.py` into comprehensive, mock-based test classes.
-  - Increased total test count to 121 with 100% pass rate.
-  - Improved branch coverage for all 8 API endpoints in node processing.
-- Established CI/CD infrastructure:
-  - Created GitHub Actions workflow for automated linting, type checking (mypy), and testing (`ci.yml`).
-  - Created GitHub Actions workflow for automated versioned releases on tag push (`release.yml`).
-  - Added project status badges to README.md.
-- Optimized project configuration:
-  - Streamlined `pyproject.toml` pytest settings for better local/CI separation.
-  - Fixed various linting issues (unused imports, trailing whitespaces) to comply with pre-commit hooks.
+### 2026-03-30 — Phase 3: MoE Model Optimization
+
+**Bug Fixes**
+- Fixed `dry_sequence_breakers` not being included in API requests. The field was defined in `SamplingParams` TypedDict but was missing from `_build_sampling_kwargs()`, meaning it was silently dropped on every request.
+- Fixed `samplers` key missing from the `sampling_params` dictionary in `process_request`, causing the user-specified sampler chain to never be sent to the server.
+
+**New: MoE Optimization Mode (`moe_mode`)**
+- Added `moe_mode` (BOOLEAN, default `False`) toggle to `LlamaCppClientNode`.
+- When enabled, automatically applies a lightweight preset optimised for Mixture-of-Experts models:
+  - Disables `timings_per_token`, `n_probs`, and `post_sampling_probs` (high overhead on MoE).
+  - Simplifies the sampler chain from the full default to `["top_k", "top_p", "temperature"]`.
+  - `cache_prompt` remains `True` (KV-cache reuse is especially beneficial on MoE).
+
+**New: Server Status & Model Detection API**
+- Added `get_health()` to `LlamaCppAPIClient` — queries `GET /health` to check server readiness and slot availability.
+- Added `get_props()` — queries `GET /props` to retrieve server/model configuration metadata.
+- Added `is_moe_model()` with two-stage detection:
+  1. **Structural check**: recursively finds the `expert_count` key anywhere in the props tree (catches DeepSeek, Mixtral, and future MoE variants that expose this field explicitly).
+  2. **Keyword scan**: falls back to searching the serialised props string for known MoE architecture names (`mixtral`, `deepseek`, `moe`, `experts`).
+
+**New: Timing Metadata Output**
+- The `timings` object returned by llama-server (e.g. `predicted_per_second`, `prompt_ms`) is now extracted and stored in the node's `metadata` output, making inference speed visible without enabling `timings_per_token`.
+
+**Testing (+18 tests → 139 total, 0 lint errors)**
+- `TestMoEDetection` (9): `get_health`, `get_props`, `is_moe_model` structural + keyword detection, dense-model non-detection.
+- `TestMoENodeFeatures` (6): `moe_mode` preset overrides for `n_probs`, `timings_per_token`, `post_sampling_probs`, sampler simplification, `timings` extraction, graceful handling when `timings` is absent.
+- `TestMoEModeUI` (3): `moe_mode` present in `INPUT_TYPES`, correct type (`BOOLEAN`), correct default (`False`).
+- All tests are mock-based (no live server required). `flake8` lint passes with 0 errors.
 
 ### 2026-03-29
 - Implemented full support for all previously unimplemented endpoints: completion, chat_completions, embeddings, tokenize, detokenize, apply_template, infill, reranking.

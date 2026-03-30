@@ -16,6 +16,7 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 - **8 Complete API Endpoints**: Every llama-server endpoint with full parameter support
 - **100+ Parameters**: Every single parameter that llama-server accepts
 - **Advanced AI Features**: Function calling, multimodal processing, structured output, and more
+- **MoE Model Support**: Built-in optimization mode for Mixture-of-Experts models (DeepSeek, Mixtral)
 - **Production Ready**: Error handling, authentication, caching, and performance optimization
 - **Plug & Play**: Easy integration into existing ComfyUI workflows
 
@@ -63,6 +64,9 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 - **LoRA Adapters**: Dynamic model adaptation per request
 - **Streaming**: Real-time token generation
 - **Authentication**: API key support for secure deployments
+- **MoE Optimization Mode**: One-click preset for Mixture-of-Experts models that disables high-overhead stats and simplifies the sampler chain
+- **Server Health Monitoring**: Built-in `GET /health` and `GET /props` support with automatic MoE architecture detection
+- **Timing Metadata**: Inference speed metrics (`predicted_per_second`, etc.) automatically surfaced in the `metadata` output
 
 ## 📦 Installation
 
@@ -196,7 +200,7 @@ Built for production use with proper error handling, authentication, timeouts, a
 - **[PARAMETERS.md](PARAMETERS.md)**: Complete reference for all 100+ parameters
 - **[examples.md](examples.md)**: Real-world configuration examples
 - **[CHANGELOG.md](CHANGELOG.md)**: Version history and updates
-- **[tests/](tests/)**: Comprehensive automated test suite (121 tests)
+- **[tests/](tests/)**: Comprehensive automated test suite (139 tests)
 
 ### **Extensible Design**
 Easy to extend and modify. Clean, well-commented code that follows ComfyUI conventions.
@@ -218,6 +222,8 @@ The test suite covers:
 - Image processing utilities (tensor conversion, Base64 encoding, metadata extraction)
 - API client request/response handling and retry logic
 - Node input schema validation and UI widget ordering
+- MoE optimization preset logic and `timings` metadata extraction
+- Server health/props API and two-stage MoE architecture detection
 
 ## 🔧 Advanced Use Cases
 
@@ -255,7 +261,7 @@ The node provides **five outputs** for maximum flexibility:
 | `raw_response` | STRING | Complete raw JSON response from the server |
 | `error` | STRING | Detailed error message (empty string on success) |
 | `status_code` | INT | HTTP status code (200 = success) |
-| `metadata` | JSON | Image metadata when using vision models (otherwise empty) |
+| `metadata` | JSON | Image metadata (vision), timing info (`timings.predicted_per_second`, etc.), and other response metadata |
 
 ## 🔍 Parameter Categories
 
@@ -297,6 +303,7 @@ Tokenization, embeddings, infill, reranking specific options, etc.
 3. Configure `n_keep` to retain important context
 4. Use streaming for long generations
 5. Optimize server batch sizes for your hardware
+6. Enable **`moe_mode`** when running Mixture-of-Experts models (DeepSeek, Mixtral) to remove sampling overhead and improve throughput
 
 ## 🤝 Contributing
 
@@ -321,9 +328,10 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - **8 API Endpoints**: Complete coverage
 - **100+ Parameters**: Every llama-server option
-- **121 Tests**: Comprehensive mock-based test suite
+- **139 Tests**: Comprehensive mock-based test suite
 - **Full Documentation**: Comprehensive guides and examples
 - **Production Ready**: Error handling, testing, validation
+- **MoE Ready**: Built-in optimization for DeepSeek, Mixtral, and other MoE architectures
 
 ---
 
