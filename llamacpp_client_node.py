@@ -1,7 +1,10 @@
 import json
 from typing import Any, Dict, Optional, Tuple, TypedDict
 
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 
 try:
     from utils.llama_client import ApiResponse, LlamaCppAPIClient
