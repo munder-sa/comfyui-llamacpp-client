@@ -5,11 +5,11 @@ import torch
 
 try:
     from utils.llama_client import ApiResponse, LlamaCppAPIClient
-    from utils.logger import log_error, set_debug_mode
+    from utils.logger import log_error, log_info, set_debug_mode
     from utils.param_utils import parse_json_param
 except ImportError:
     from .utils.llama_client import ApiResponse, LlamaCppAPIClient
-    from .utils.logger import log_error, set_debug_mode
+    from .utils.logger import log_error, log_info, set_debug_mode
     from .utils.param_utils import parse_json_param
 
 
@@ -27,6 +27,7 @@ class SamplingParams(TypedDict):
     dry_base: float
     dry_allowed_length: int
     dry_penalty_last_n: int
+    dry_sequence_breakers: str
     mirostat: int
     mirostat_tau: float
     mirostat_eta: float
@@ -322,6 +323,13 @@ class LlamaCppClientNode:
                 "IMAGE",
                 {"tooltip": "ComfyUI image tensor to send to the multimodal model"},
             ),
+            "moe_mode": (
+                "BOOLEAN",
+                {
+                    "default": False,
+                    "tooltip": "Enable MoE optimization (disable heavy sampling stats)",
+                },
+            ),
             "extract_metadata": ("BOOLEAN", {"default": True}),
             "debug_mode": ("BOOLEAN", {"default": True}),
         }
@@ -389,6 +397,7 @@ class LlamaCppClientNode:
             "dry_base": params["dry_base"],
             "dry_allowed_length": params["dry_allowed_length"],
             "dry_penalty_last_n": params["dry_penalty_last_n"],
+            "dry_sequence_breakers": parse_json_param(params.get("dry_sequence_breakers", ""), []),
             "stop": parse_json_param(params["stop_sequences"], []),
             "stream": params["stream"],
             "cache_prompt": params["cache_prompt"],
@@ -526,6 +535,7 @@ class LlamaCppClientNode:
         response_fields: str = "[]",
         image_data: str = "[]",
         images: Optional[torch.Tensor] = None,
+        moe_mode: bool = False,
         extract_metadata: bool = True,
         debug_mode: bool = True,
     ) -> Tuple[str, str, str, int, Dict[str, Any]]:
@@ -557,6 +567,7 @@ class LlamaCppClientNode:
                 "dry_base": dry_base,
                 "dry_allowed_length": dry_allowed_length,
                 "dry_penalty_last_n": dry_penalty_last_n,
+                "dry_sequence_breakers": dry_sequence_breakers,
                 "mirostat": mirostat,
                 "mirostat_tau": mirostat_tau,
                 "mirostat_eta": mirostat_eta,
@@ -582,6 +593,16 @@ class LlamaCppClientNode:
                 "xtc_probability": xtc_probability,
                 "xtc_threshold": xtc_threshold,
             }
+
+            # Apply MoE Presets
+            if moe_mode:
+                log_info("MoE optimization mode enabled")
+                sampling_params["timings_per_token"] = False
+                sampling_params["n_probs"] = 0
+                sampling_params["post_sampling_probs"] = False
+                # Simplify samplers for MoE if default
+                if samplers == '["dry", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature"]':
+                    sampling_params["samplers"] = '["top_k", "top_p", "temperature"]'
 
             api_response: ApiResponse
 
@@ -708,6 +729,10 @@ class LlamaCppClientNode:
             if metadata_list:
                 for i, meta in enumerate(metadata_list):
                     metadata[f"image_{i}"] = meta
+
+            # Extract timings
+            if isinstance(response, dict) and "timings" in response:
+                metadata["timings"] = response["timings"]
 
             if error:
                 log_error(f"API Error: {error}")

@@ -84,5 +84,28 @@ class TestImageDataVisibility(unittest.TestCase):
         self.assertTrue(optional["user_message"][1].get("multiline", False))
 
 
+
+class TestMoEModeUI(unittest.TestCase):
+    """Tests for moe_mode toggle presence in INPUT_TYPES."""
+
+    def setUp(self):
+        self.node = LlamaCppClientNode()
+        self.optional = self.node.INPUT_TYPES()["optional"]
+
+    def test_moe_mode_in_optional_inputs(self):
+        """moe_mode should be present as an optional BOOLEAN input."""
+        self.assertIn("moe_mode", self.optional)
+
+    def test_moe_mode_is_boolean_type(self):
+        """moe_mode should be declared as BOOLEAN."""
+        moe_entry = self.optional["moe_mode"]
+        self.assertEqual(moe_entry[0], "BOOLEAN")
+
+    def test_moe_mode_default_is_false(self):
+        """moe_mode default must be False to avoid unintended preset activation."""
+        moe_entry = self.optional["moe_mode"]
+        self.assertFalse(moe_entry[1]["default"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -330,6 +330,81 @@ class LlamaCppAPIClient:
                 status_code=500,
             )
 
+    @retry_on_transient_error(max_retries=2, base_delay=0.5)
+    def get_health(self) -> Dict[str, Any]:
+        """GET /health - Check server status and slot availability."""
+        url = f"{self.base_url}/health"
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        log_debug(f"Checking health: {url}")
+        try:
+            session = self._get_session()
+            response = session.get(url, headers=headers, timeout=5)
+            return response.json() if response.status_code == 200 else {"status": "error", "code": response.status_code}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
+    @retry_on_transient_error(max_retries=2, base_delay=0.5)
+    def get_props(self) -> Dict[str, Any]:
+        """GET /props - Get server and model metadata."""
+        url = f"{self.base_url}/props"
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        log_debug(f"Getting props: {url}")
+        try:
+            session = self._get_session()
+            response = session.get(url, headers=headers, timeout=5)
+            return response.json() if response.status_code == 200 else {}
+        except Exception:
+            return {}
+
+    def is_moe_model(self) -> bool:
+        """Detect if the loaded model uses a MoE architecture.
+
+        Strategy (applied in order):
+        1. Structural check: look for 'expert_count' key in the props dict tree.
+           This is the most reliable signal, as it appears in DeepSeek and similar
+           models that explicitly expose their expert configuration.
+        2. Keyword check: scan the JSON-serialised props string for architecture
+           names associated with MoE layouts (mixtral, deepseek, moe, experts).
+
+        Returns:
+            True if either heuristic matches, False otherwise.
+        """
+        props = self.get_props()
+
+        # --- 1. Structural check for explicit expert_count field ---
+        def _has_expert_count(obj: Any, depth: int = 0) -> bool:
+            """Recursively search for 'expert_count' key."""
+            if depth > 5:
+                return False
+            if isinstance(obj, dict):
+                if "expert_count" in obj:
+                    return True
+                return any(_has_expert_count(v, depth + 1) for v in obj.values())
+            if isinstance(obj, list):
+                return any(_has_expert_count(item, depth + 1) for item in obj)
+            return False
+
+        if _has_expert_count(props):
+            log_info("MoE Model detected via structural 'expert_count' field.")
+            return True
+
+        # --- 2. Keyword check on serialised props string ---
+        props_str = json.dumps(props).lower()
+        moe_keywords = ["mixtral", "deepseek", "moe", "experts"]
+        for kw in moe_keywords:
+            if kw in props_str:
+                log_info(f"MoE Model detected via keyword: '{kw}'")
+                return True
+
+        return False
+
+
     def handle_completion(self, prompt: str, **kwargs) -> ApiResponse:
         """Handle /completion endpoint."""
         params: Dict[str, Any] = {"prompt": prompt}
