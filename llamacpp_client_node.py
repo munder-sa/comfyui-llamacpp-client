@@ -3,11 +3,8 @@ from typing import Any, Dict, Optional, Tuple, TypedDict
 
 try:
     import torch
-
-    TensorType = torch.Tensor
 except ImportError:
     torch = None
-    TensorType = Any  # type: ignore
 
 try:
     from utils.llama_client import ApiResponse, LlamaCppAPIClient
@@ -87,7 +84,7 @@ class ChatParams(TypedDict):
     tool_choice: str
     response_format: str
     image_data: str
-    images: Optional[TensorType]
+    images: Optional[Any]
     extract_metadata: bool
     sampling: SamplingParams
 
@@ -540,7 +537,7 @@ class LlamaCppClientNode:
         lora: str = "[]",
         response_fields: str = "[]",
         image_data: str = "[]",
-        images: Optional[TensorType] = None,
+        images: Optional[Any] = None,
         moe_mode: bool = False,
         extract_metadata: bool = True,
         debug_mode: bool = True,
