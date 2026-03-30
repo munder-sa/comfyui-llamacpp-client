@@ -1,3 +1,16 @@
+### 2026-03-30
+- Enhanced test suite quality and coverage:
+  - Refactored `tests/test_image_utils.py`, `tests/test_node.py`, and `tests/test_ui_logic.py` into comprehensive, mock-based test classes.
+  - Increased total test count to 121 with 100% pass rate.
+  - Improved branch coverage for all 8 API endpoints in node processing.
+- Established CI/CD infrastructure:
+  - Created GitHub Actions workflow for automated linting, type checking (mypy), and testing (`ci.yml`).
+  - Created GitHub Actions workflow for automated versioned releases on tag push (`release.yml`).
+  - Added project status badges to README.md.
+- Optimized project configuration:
+  - Streamlined `pyproject.toml` pytest settings for better local/CI separation.
+  - Fixed various linting issues (unused imports, trailing whitespaces) to comply with pre-commit hooks.
+
 ### 2026-03-29
 - Implemented full support for all previously unimplemented endpoints: completion, chat_completions, embeddings, tokenize, detokenize, apply_template, infill, reranking.
   - Extended EndpointType Enum to 8 types (COMPLETION, CHAT_COMPLETION, EMBEDDING, TOKENIZE, DETOKENIZE, INFILL, RERANKING, APPLY_TEMPLATE).

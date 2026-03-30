@@ -1,6 +1,6 @@
 {
     "name": "ComfyUI Llama.cpp Client Node",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Comprehensive ComfyUI custom node for llama-server client with complete API support",
     "author": "AI Assistant",
     "license": "MIT",
@@ -11,7 +11,7 @@
     ],
     "supported_endpoints": [
         "completion",
-        "chat_completions", 
+        "chat_completions",
         "embeddings",
         "tokenize",
         "detokenize",
