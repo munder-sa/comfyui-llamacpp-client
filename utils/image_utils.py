@@ -100,7 +100,7 @@ def extract_tensor_metadata(tensor_image, batch_index: Optional[int] = None) -> 
     """
     try:
         # Convert tensor to numpy if needed
-        if isinstance(tensor_image, torch.Tensor):
+        if torch is not None and isinstance(tensor_image, torch.Tensor):
             tensor_image = tensor_image.cpu().numpy()
 
         # Convert to PIL Image
@@ -168,11 +168,11 @@ def tensor_to_base64_data_uri(
     original_tensor = None
     try:
         # Store reference for memory clearing
-        if isinstance(tensor_image, torch.Tensor):
+        if torch is not None and isinstance(tensor_image, torch.Tensor):
             original_tensor = tensor_image
 
         # Convert tensor to numpy if needed
-        if isinstance(tensor_image, torch.Tensor):
+        if torch is not None and isinstance(tensor_image, torch.Tensor):
             tensor_image = tensor_image.cpu().numpy()
 
         # Convert to PIL Image
@@ -295,7 +295,7 @@ def build_vision_content(
     # 3. Add Images from native ComfyUI IMAGE tensor
     if tensor_images is not None:
         # Handle both torch.Tensor and numpy.ndarray
-        is_torch = isinstance(tensor_images, torch.Tensor)
+        is_torch = torch is not None and isinstance(tensor_images, torch.Tensor)
         is_numpy = isinstance(tensor_images, np.ndarray)
 
         if is_torch or is_numpy:
