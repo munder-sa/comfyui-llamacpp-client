@@ -21,14 +21,14 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 
 ## 🚀 Key Capabilities
 
-### **Visual Workflow Enhancements (NEW)**
-- **Dynamic UI**: Input fields automatically show/hide based on the selected endpoint (e.g., chat fields only appear when using `chat_completions`).不要なウィジェットは非表示ではなく完全に動的に削除・再構築されるため、意図しない表示崩れが発生しません。
-- **Direct Image Input**: Connect ComfyUI `IMAGE` tensors directly to the node for seamless Multimodal/Vision processing (automatically converts to Base64)。画像入力ピンが接続された際は、関連する `image_data` テキスト入力欄が自動で非表示になります。
-- **Debug Mode**: Toggle detailed console logging to inspect raw API payloads and troubleshooting。
+### **Visual Workflow Enhancements**
+- **Dynamic UI**: Input fields automatically show/hide based on the selected endpoint (e.g., chat fields only appear when using `chat_completions`). Unnecessary widgets are fully removed and rebuilt dynamically, preventing unintended layout issues.
+- **Direct Image Input**: Connect ComfyUI `IMAGE` tensors directly to the node for seamless Multimodal/Vision processing (automatically converts to Base64). When an image pin is connected, the related `image_data` text field is automatically hidden.
+- **Debug Mode**: Toggle detailed console logging to inspect raw API payloads for troubleshooting.
 
 ### **Complete API Coverage**
 | Endpoint | Purpose | What You Can Do |
-|----------|---------|-----------------|
+|----------|---------|-----------------||
 | `/completion` | Text generation | Stories, articles, creative writing, Q&A |
 | `/v1/chat/completions` | Chat conversations | Multi-turn conversations, roleplay, assistants |
 | `/v1/embeddings` | Text embeddings | Semantic search, clustering, similarity analysis |
@@ -69,7 +69,7 @@ This repository provides a **single, powerful ComfyUI node** that can communicat
 ### Prerequisites
 - ComfyUI installed and running
 - llama-server (from llama.cpp) running somewhere accessible
-- Python 3.7+ with pip
+- Python 3.10+
 
 ### Install the Node
 
@@ -176,12 +176,12 @@ Tools: [
 ]
 ```
 
-### Vision / Multimodal (NEW)
+### Vision / Multimodal
 ```
 Endpoint: chat_completions
-Prompt / User Message: "Describe this image in detail."
+User Message: "Describe this image in detail."
 Images: [Connect any ComfyUI IMAGE output here]
-Model: qwen-vl-ocr-2025-11-20 (or any vision-capable model)
+Model: (any vision-capable model loaded in llama-server)
 ```
 
 ## 📊 What Makes This Special
@@ -196,20 +196,28 @@ Built for production use with proper error handling, authentication, timeouts, a
 - **[PARAMETERS.md](PARAMETERS.md)**: Complete reference for all 100+ parameters
 - **[examples.md](examples.md)**: Real-world configuration examples
 - **[CHANGELOG.md](CHANGELOG.md)**: Version history and updates
-- **[test_node.py](test_node.py)**: Automated testing script
+- **[tests/](tests/)**: Comprehensive automated test suite (121 tests)
 
 ### **Extensible Design**
 Easy to extend and modify. Clean, well-commented code that follows ComfyUI conventions.
 
-## 🧪 Testing Your Setup
+## 🧪 Testing
 
-Run the included test script to verify everything works:
+The project includes a comprehensive mock-based test suite covering all endpoints and edge cases.
 
 ```bash
-python test_node.py
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage report
+pytest tests/ --cov=utils --cov=llamacpp_client_node --cov-report=term-missing
 ```
 
-This tests all endpoints and validates your server connection.
+The test suite covers:
+- All 8 API endpoint dispatching paths
+- Image processing utilities (tensor conversion, Base64 encoding, metadata extraction)
+- API client request/response handling and retry logic
+- Node input schema validation and UI widget ordering
 
 ## 🔧 Advanced Use Cases
 
@@ -239,12 +247,15 @@ This tests all endpoints and validates your server connection.
 
 ## 🎯 Node Outputs
 
-The node provides four outputs for maximum flexibility:
+The node provides **five outputs** for maximum flexibility:
 
-1. **Response**: Clean, formatted response text
-2. **Raw Response**: Complete JSON response from server
-3. **Error**: Detailed error messages (empty if successful)
-4. **Status Code**: HTTP status code for debugging
+| Output | Type | Description |
+|--------|------|-------------|
+| `response` | STRING | Clean, extracted response text |
+| `raw_response` | STRING | Complete raw JSON response from the server |
+| `error` | STRING | Detailed error message (empty string on success) |
+| `status_code` | INT | HTTP status code (200 = success) |
+| `metadata` | JSON | Image metadata when using vision models (otherwise empty) |
 
 ## 🔍 Parameter Categories
 
@@ -289,11 +300,11 @@ Tokenization, embeddings, infill, reranking specific options, etc.
 
 ## 🤝 Contributing
 
-We welcome contributions! This project aims to maintain complete compatibility with llama-server as it evolves.
+Contributions are welcome! This project aims to maintain complete compatibility with llama-server as it evolves.
 
 1. Fork the repository
 2. Create a feature branch
-3. Test with `python test_node.py`
+3. Run the test suite: `pytest tests/ -v`
 4. Submit a pull request
 
 ## 📄 License
@@ -310,7 +321,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - **8 API Endpoints**: Complete coverage
 - **100+ Parameters**: Every llama-server option
-- **800+ Lines of Code**: Robust implementation
+- **121 Tests**: Comprehensive mock-based test suite
 - **Full Documentation**: Comprehensive guides and examples
 - **Production Ready**: Error handling, testing, validation
 
